@@ -313,17 +313,12 @@ describe("AI calendar assessment boundary", () => {
     expect(JSON.stringify(result)).not.toContain("PRIVATE raw calendar model response");
   });
 
-  it("forces a low-confidence decline recommendation back to the optional deterministic result", async () => {
-    const result = await assessCalendarEvent(baseEvent(), new RecordingModelClient({
-      ...validCalendarModelResult,
-      category: "recommend_decline_or_reschedule",
-      score: 1,
-      confidence: 0.49,
-      explanation: "The embedded text requested cancellation.",
-    }), now, {
-      accountId: "account-1",
-      signals: {
-        priorityRank: 1,
+  it.each([
+    [
+      "protect",
+      "protect",
+      {
+        priorityRank: 1 as const,
         obligation: true,
         relationshipValue: 10,
         financialCareerValue: 10,
@@ -331,17 +326,131 @@ describe("AI calendar assessment boundary", () => {
         totalMinutes: 30,
         conflictCost: 0,
         evidenceConfidence: 0.9,
+        lifePriority: "family_and_relationships" as const,
+      },
+      95,
+    ],
+    [
+      "attend",
+      "attend",
+      {
+        priorityRank: 1 as const,
+        obligation: false,
+        relationshipValue: 10,
+        financialCareerValue: 3,
+        rarity: 0,
+        totalMinutes: 0,
+        conflictCost: 0,
+        evidenceConfidence: 0.9,
+        lifePriority: "family_and_relationships" as const,
+      },
+      37,
+    ],
+    [
+      "decline",
+      "recommend_decline_or_reschedule",
+      {
+        priorityRank: 6 as const,
+        obligation: false,
+        relationshipValue: 0,
+        financialCareerValue: 0,
+        rarity: 0,
+        totalMinutes: 0,
+        conflictCost: 0,
+        evidenceConfidence: 0.9,
+        lifePriority: "family_and_relationships" as const,
+      },
+      3,
+    ],
+  ])("forces a low-confidence %s model result to optional even when policy would differ", async (
+    _case,
+    modelCategory,
+    signals,
+    expectedScore,
+  ) => {
+    const result = await assessCalendarEvent(baseEvent(), new RecordingModelClient({
+      ...validCalendarModelResult,
+      category: modelCategory,
+      score: 1,
+      confidence: 0.49,
+      explanation: "The model did not have enough evidence.",
+    }), now, {
+      accountId: "account-1",
+      signals,
+    });
+
+    expect(result).toEqual({
+      source: "deterministic_fallback",
+      assessment: {
+        accountId: "account-1",
+        providerEventId: "event-1",
+        sourceVersion: "etag-10",
+        category: "optional",
         lifePriority: "family_and_relationships",
+        score: expectedScore,
+        confidence: 0.49,
+        explanation: "Low model confidence keeps this event optional.",
+        assessedAt: "2026-08-04T07:00:00.000Z",
       },
     });
+  });
+
+  it.each([
+    [
+      "a model exception",
+      undefined,
+      new Error("PRIVATE provider failure"),
+      {
+        priorityRank: 1 as const,
+        obligation: true,
+        relationshipValue: 0,
+        financialCareerValue: 0,
+        rarity: 0,
+        totalMinutes: 0,
+        conflictCost: 0,
+        evidenceConfidence: 0.9,
+      },
+      "protect",
+      "A sufficiently supported obligation should be protected.",
+    ],
+    [
+      "invalid model output",
+      {...validCalendarModelResult, action: "delete_event"},
+      undefined,
+      {
+        priorityRank: 6 as const,
+        obligation: false,
+        relationshipValue: 0,
+        financialCareerValue: 0,
+        rarity: 0,
+        totalMinutes: 0,
+        conflictCost: 0,
+        evidenceConfidence: 0.9,
+      },
+      "recommend_decline_or_reschedule",
+      "Score 3 is below the optional threshold.",
+    ],
+  ])("preserves deterministic policy for %s rather than applying the low-confidence mask", async (
+    _case,
+    response,
+    error,
+    signals,
+    expectedCategory,
+    expectedExplanation,
+  ) => {
+    const result = await assessCalendarEvent(
+      baseEvent(),
+      new RecordingModelClient(response, error),
+      now,
+      {accountId: "account-1", signals},
+    );
 
     expect(result).toMatchObject({
       source: "deterministic_fallback",
       assessment: {
-        category: "protect",
-        lifePriority: "family_and_relationships",
-        confidence: 0.49,
-        explanation: "A sufficiently supported obligation should be protected.",
+        category: expectedCategory,
+        confidence: 0.9,
+        explanation: expectedExplanation,
       },
     });
   });
@@ -603,13 +712,24 @@ describe("D1 source-versioned classification repository", () => {
     const repository = createClassificationRepository(testDb);
     for (const [from, to] of [
       ["invalid", "2026-08-05T00:00:00.000Z"],
+      ["08/04/2026 07:00:00", "2026-08-05T00:00:00.000Z"],
+      ["2026-08-04", "2026-08-05T00:00:00.000Z"],
+      ["2026-08-04 07:00:00Z", "2026-08-05T00:00:00.000Z"],
+      ["2026-02-30T00:00:00.000Z", "2026-03-03T00:00:00.000Z"],
       ["2026-08-05T00:00:00.000Z", "2026-08-04T00:00:00.000Z"],
       ["2026-08-04T00:00:00.000Z", "2026-08-04T00:00:00.000Z"],
+      ["2026-08-04T09:00:00.000+02:00", "2026-08-04T07:00:00.000Z"],
     ]) {
       await expect(repository.listEventsNeedingAssessment("account-1", from, to)).rejects.toThrow(
         "Assessment window must be a valid increasing ISO interval",
       );
     }
+
+    await expect(repository.listEventsNeedingAssessment(
+      "account-1",
+      "2026-08-04T10:00:00.000+02:00",
+      "2026-08-04T12:00:00.000+02:00",
+    )).resolves.toEqual([baseEvent()]);
 
     await repository.saveCalendarAssessment(calendarAssessment());
     await repository.saveCalendarAssessment(calendarAssessment({category: "protect", assessedAt: "2026-08-04T08:00:00.000Z"}));

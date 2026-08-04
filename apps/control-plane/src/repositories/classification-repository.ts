@@ -8,6 +8,7 @@ import {
   type EmailClassification,
   type EmailRecord,
 } from "@lifeos/contracts";
+import {z} from "zod";
 
 export interface ClassificationRepository {
   saveEmailClassification(value: EmailClassification): Promise<void>;
@@ -45,7 +46,12 @@ const validateLimit = (limit: number): void => {
   }
 };
 
+const IsoInstantSchema = z.iso.datetime({offset: true});
+
 const validateWindow = (from: string, to: string): {from: string; to: string} => {
+  if (!IsoInstantSchema.safeParse(from).success || !IsoInstantSchema.safeParse(to).success) {
+    throw new RangeError("Assessment window must be a valid increasing ISO interval");
+  }
   const fromTime = Date.parse(from);
   const toTime = Date.parse(to);
   if (!Number.isFinite(fromTime) || !Number.isFinite(toTime) || fromTime >= toTime) {

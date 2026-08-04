@@ -45,11 +45,15 @@ export const assessCalendarEvent = async (
 
   const assessedAt = now.toISOString();
   const fallback = scoreCalendarEvent(context.signals ?? defaultSignals);
-  const buildFallback = (confidence = fallback.confidence) => ({
+  const buildFallback = (overrides: {
+    category?: "optional";
+    confidence?: number;
+    explanation?: string;
+  } = {}) => ({
     source: "deterministic_fallback" as const,
     assessment: CalendarAssessmentSchema.parse({
       ...fallback,
-      confidence,
+      ...overrides,
       accountId: event.accountId,
       providerEventId: event.providerEventId,
       sourceVersion: event.sourceVersion,
@@ -71,7 +75,11 @@ export const assessCalendarEvent = async (
       }),
     }));
     if (parsed.confidence < 0.5) {
-      return buildFallback(Math.min(fallback.confidence, 0.49));
+      return buildFallback({
+        category: "optional",
+        confidence: Math.min(fallback.confidence, 0.49),
+        explanation: "Low model confidence keeps this event optional.",
+      });
     }
     return {
       source: "workers_ai" as const,
