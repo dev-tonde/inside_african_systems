@@ -404,6 +404,78 @@ describe("Gmail API client", () => {
       await expect(invalidClient.listRecentMessages("newer_than:7d")).rejects.not.toThrow("m-invalid");
     }
   });
+
+  it("rejects malformed profile and message-list envelopes before they can become a checkpoint", async () => {
+    const malformedProfiles: unknown[] = [
+      {},
+      {historyId: ""},
+      {historyId: 42},
+    ];
+    for (const body of malformedProfiles) {
+      const client = createGmailClient(
+        "access-token",
+        (async () => json(body)) as typeof fetch,
+      );
+      await expect(client.listRecentMessages("newer_than:7d")).rejects.toThrow("Gmail response was invalid");
+    }
+
+    const malformedMessageLists: unknown[] = [
+      {messages: "PRIVATE MESSAGE LIST", nextPageToken: undefined},
+      {messages: [{id: 42}], nextPageToken: undefined},
+      {messages: [{id: "m-1", threadId: 42}], nextPageToken: undefined},
+      {messages: [], nextPageToken: 42},
+    ];
+    for (const body of malformedMessageLists) {
+      const client = createGmailClient(
+        "access-token",
+        (async (request: RequestInfo | URL) => {
+          const url = new URL(String(request));
+          if (url.pathname.endsWith("/profile")) return json({historyId: "history-10"});
+          return json(body);
+        }) as typeof fetch,
+      );
+      await expect(client.listRecentMessages("newer_than:7d")).rejects.toThrow("Gmail response was invalid");
+      await expect(client.listRecentMessages("newer_than:7d")).rejects.not.toThrow("PRIVATE MESSAGE LIST");
+    }
+  });
+
+  it("rejects malformed history envelopes, including nested additions and terminal checkpoints", async () => {
+    const malformedHistories: unknown[] = [
+      {history: "PRIVATE HISTORY", historyId: "history-11"},
+      {history: [{messagesAdded: "not-an-array"}], historyId: "history-11"},
+      {history: [{messagesAdded: [{message: {id: 42}}]}], historyId: "history-11"},
+      {history: [], nextPageToken: 42, historyId: "history-11"},
+      {history: []},
+      {history: [], historyId: 42},
+    ];
+    for (const body of malformedHistories) {
+      const client = createGmailClient(
+        "access-token",
+        (async () => json(body)) as typeof fetch,
+      );
+      await expect(client.listChangedMessages("history-10")).rejects.toThrow("Gmail response was invalid");
+      await expect(client.listChangedMessages("history-10")).rejects.not.toThrow("PRIVATE HISTORY");
+    }
+  });
+
+  it("does not upsert or advance a cursor when a malformed provider envelope contains private text", async () => {
+    const repository = new FakeEmailRepository("history-10");
+    const client = createGmailClient(
+      "access-token",
+      (async (request: RequestInfo | URL) => {
+        const url = new URL(String(request));
+        if (url.pathname.endsWith("/history")) {
+          return json({history: "PRIVATE PROVIDER BODY", historyId: "history-11"});
+        }
+        throw new Error(`Unexpected request ${url}`);
+      }) as typeof fetch,
+    );
+
+    await expect(syncGmailAccount(baseInput({client, repository}))).rejects.toThrow("Gmail response was invalid");
+    await expect(syncGmailAccount(baseInput({client, repository}))).rejects.not.toThrow("PRIVATE PROVIDER BODY");
+    expect(repository.cursor).toBe("history-10");
+    expect(repository.operations).toEqual(["getCursor", "getCursor"]);
+  });
 });
 
 describe("Google access-token refresh", () => {

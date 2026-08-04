@@ -26,14 +26,6 @@ export interface GmailClient {
 
 const gmailBaseUrl = "https://gmail.googleapis.com/gmail/v1/users/me";
 
-type MessageListResponse = {messages?: Array<{id?: unknown}>; nextPageToken?: unknown};
-type HistoryListResponse = {
-  history?: Array<{messagesAdded?: Array<{message?: {id?: unknown}}>}>;
-  nextPageToken?: unknown;
-  historyId?: unknown;
-};
-type ProfileResponse = {historyId?: unknown};
-
 const messageMetadata = new URLSearchParams([
   ["format", "metadata"],
   ["metadataHeaders", "From"],
@@ -46,12 +38,16 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.length > 0;
 
-const getJson = async <ResponseBody>(
+const invalidEnvelope = (): never => {
+  throw new Error("Gmail response was invalid");
+};
+
+const getJson = async (
   url: URL,
   accessToken: string,
   fetcher: typeof fetch,
   options: {historyRequest?: boolean; missingMessageIsEmpty?: boolean} = {},
-): Promise<ResponseBody | null> => {
+): Promise<Record<string, unknown> | null> => {
   let response: Response;
   try {
     response = await fetcher(url, {headers: {authorization: `Bearer ${accessToken}`}});
@@ -64,11 +60,63 @@ const getJson = async <ResponseBody>(
 
   const value: unknown = await response.json().catch(() => null);
   if (!isRecord(value)) throw new Error("Gmail response was invalid");
-  return value as ResponseBody;
+  return value;
 };
 
 const invalidMessage = (): never => {
   throw new Error("Gmail message response was invalid");
+};
+
+const optionalPageToken = (value: Record<string, unknown>): string | undefined => {
+  if (!("nextPageToken" in value) || value.nextPageToken === undefined) return undefined;
+  if (!isNonEmptyString(value.nextPageToken)) return invalidEnvelope();
+  return value.nextPageToken;
+};
+
+const validateMessageReference = (value: unknown): string => {
+  if (!isRecord(value) || !isNonEmptyString(value.id)) return invalidEnvelope();
+  if (value.threadId !== undefined && !isNonEmptyString(value.threadId)) return invalidEnvelope();
+  return value.id;
+};
+
+const validateMessageList = (value: Record<string, unknown>): {ids: string[]; nextPageToken?: string} => {
+  const rawMessages = value.messages;
+  if (rawMessages !== undefined && !Array.isArray(rawMessages)) return invalidEnvelope();
+  return {
+    ids: (rawMessages ?? []).map(validateMessageReference),
+    nextPageToken: optionalPageToken(value),
+  };
+};
+
+const validateProfile = (value: Record<string, unknown>): string => {
+  if (!isNonEmptyString(value.historyId)) return invalidEnvelope();
+  return value.historyId;
+};
+
+const validateHistoryList = (value: Record<string, unknown>): {
+  ids: string[];
+  nextPageToken?: string;
+  historyId?: string;
+} => {
+  const rawHistory = value.history;
+  if (rawHistory !== undefined && !Array.isArray(rawHistory)) return invalidEnvelope();
+  const ids: string[] = [];
+  for (const history of rawHistory ?? []) {
+    if (!isRecord(history)) return invalidEnvelope();
+    const additions = history.messagesAdded;
+    if (additions === undefined) continue;
+    if (!Array.isArray(additions)) return invalidEnvelope();
+    for (const addition of additions) {
+      if (!isRecord(addition) || !("message" in addition)) return invalidEnvelope();
+      ids.push(validateMessageReference(addition.message));
+    }
+  }
+  if (value.historyId !== undefined && !isNonEmptyString(value.historyId)) return invalidEnvelope();
+  return {
+    ids,
+    nextPageToken: optionalPageToken(value),
+    historyId: value.historyId,
+  };
 };
 
 const validateMessage = (value: unknown): GmailMessage => {
@@ -104,7 +152,7 @@ const validateMessage = (value: unknown): GmailMessage => {
 const loadMessage = async (id: string, accessToken: string, fetcher: typeof fetch): Promise<GmailMessage | null> => {
   const url = new URL(`${gmailBaseUrl}/messages/${encodeURIComponent(id)}`);
   for (const [name, value] of messageMetadata) url.searchParams.append(name, value);
-  const value = await getJson<unknown>(url, accessToken, fetcher, {missingMessageIsEmpty: true});
+  const value = await getJson(url, accessToken, fetcher, {missingMessageIsEmpty: true});
   return value === null ? null : validateMessage(value);
 };
 
@@ -119,25 +167,24 @@ const loadMessages = async (ids: unknown[], accessToken: string, fetcher: typeof
   return messages.filter((message): message is GmailMessage => message !== null);
 };
 
-const pageToken = (value: unknown): string | undefined => isNonEmptyString(value) ? value : undefined;
-
 export const createGmailClient = (accessToken: string, fetcher: typeof fetch = fetch): GmailClient => ({
   async listRecentMessages(query) {
     // Capture this first. If Gmail changes while messages are listed, the next delta starts
     // at this earlier checkpoint and safely sees the later history records.
-    const profile = await getJson<ProfileResponse>(new URL(`${gmailBaseUrl}/profile`), accessToken, fetcher);
-    if (!profile || !isNonEmptyString(profile.historyId)) throw new Error("Gmail profile response was invalid");
-    const checkpoint = profile.historyId;
+    const profile = await getJson(new URL(`${gmailBaseUrl}/profile`), accessToken, fetcher);
+    if (!profile) return invalidEnvelope();
+    const checkpoint = validateProfile(profile);
     let currentPageToken: string | undefined;
     const ids: unknown[] = [];
     do {
       const url = new URL(`${gmailBaseUrl}/messages`);
       url.searchParams.set("q", query);
       if (currentPageToken) url.searchParams.set("pageToken", currentPageToken);
-      const page = await getJson<MessageListResponse>(url, accessToken, fetcher);
-      if (!page) throw new Error("Gmail response was invalid");
-      ids.push(...(page.messages ?? []).map((message) => message.id));
-      currentPageToken = pageToken(page.nextPageToken);
+      const response = await getJson(url, accessToken, fetcher);
+      if (!response) return invalidEnvelope();
+      const page = validateMessageList(response);
+      ids.push(...page.ids);
+      currentPageToken = page.nextPageToken;
     } while (currentPageToken);
 
     return {messages: await loadMessages(ids, accessToken, fetcher), checkpoint};
@@ -152,15 +199,14 @@ export const createGmailClient = (accessToken: string, fetcher: typeof fetch = f
       url.searchParams.set("startHistoryId", startHistoryId);
       url.searchParams.set("historyTypes", "messageAdded");
       if (currentPageToken) url.searchParams.set("pageToken", currentPageToken);
-      const page = await getJson<HistoryListResponse>(url, accessToken, fetcher, {historyRequest: true});
-      if (!page) throw new Error("Gmail response was invalid");
-      for (const history of page.history ?? []) {
-        ids.push(...(history.messagesAdded ?? []).map((addition) => addition.message?.id));
-      }
-      checkpoint = isNonEmptyString(page.historyId) ? page.historyId : undefined;
-      currentPageToken = pageToken(page.nextPageToken);
+      const response = await getJson(url, accessToken, fetcher, {historyRequest: true});
+      if (!response) return invalidEnvelope();
+      const page = validateHistoryList(response);
+      ids.push(...page.ids);
+      checkpoint = page.historyId;
+      currentPageToken = page.nextPageToken;
     } while (currentPageToken);
-    if (!checkpoint) throw new Error("Gmail history response was invalid");
+    if (!checkpoint) return invalidEnvelope();
 
     return {messages: await loadMessages(ids, accessToken, fetcher), checkpoint};
   },
