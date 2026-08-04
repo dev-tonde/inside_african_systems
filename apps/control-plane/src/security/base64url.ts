@@ -14,7 +14,9 @@ export const base64UrlToBytes = (value: string): Uint8Array => {
     .replaceAll("_", "/")
     .padEnd(Math.ceil(value.length / 4) * 4, "=");
   const binary = atob(padded);
-  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  if (bytesToBase64Url(bytes) !== value) throw new Error("Non-canonical base64url value");
+  return bytes;
 };
 
 export const base64ToBytes = (value: string): Uint8Array => {
