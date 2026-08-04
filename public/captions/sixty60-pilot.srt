@@ -1,0 +1,251 @@
+1
+00:00:00,000 --> 00:00:07,952
+A Sixty60 order looks like a delivery story: tap a phone, a turquoise scooter appears, and groceries reach the door.
+
+2
+00:00:07,952 --> 00:00:13,120
+But the scooter is only the visible end of a much larger system.
+
+3
+00:00:13,120 --> 00:00:17,096
+The real advantage was built long before the order arrived.
+
+4
+00:00:17,096 --> 00:00:24,650
+It sits inside Shoprite's store network, supply chain, software, in-store picking operation, and control of the final five kilometres.
+
+5
+00:00:25,300 --> 00:00:27,455
+Checkers launched Sixty60 in November 2019.
+
+6
+00:00:27,455 --> 00:00:36,077
+Its name carried the proposition: customers should be able to shop in about sixty seconds and receive groceries in as little as sixty minutes.
+
+7
+00:00:36,077 --> 00:00:40,748
+That sounds like a marketing promise, but it is also an operating constraint.
+
+8
+00:00:40,748 --> 00:00:51,525
+Every part of the system has to know what is available, where it is, who will pick it, and whether a driver can complete the trip inside the promised window.
+
+9
+00:00:52,175 --> 00:00:54,513
+The basic journey has five links.
+
+10
+00:00:54,513 --> 00:00:56,462
+The customer places an order.
+
+11
+00:00:56,462 --> 00:01:01,528
+The platform connects that order to a nearby participating store or fulfilment site.
+
+12
+00:01:01,528 --> 00:01:06,985
+A picker assembles the basket using current stock information and deals with unavailable products.
+
+13
+00:01:06,985 --> 00:01:10,492
+The packed order is handed to the delivery operation.
+
+14
+00:01:10,492 --> 00:01:14,389
+A driver then covers the short trip to the customer.
+
+15
+00:01:14,389 --> 00:01:20,625
+Speed comes from reducing the distance and coordinating the hand-offs, not from expecting riders to race.
+
+16
+00:01:21,275 --> 00:01:25,697
+Traditional e-commerce often begins with a central warehouse and a long delivery route.
+
+17
+00:01:25,697 --> 00:01:28,077
+Sixty60 starts much closer to the customer.
+
+18
+00:01:28,077 --> 00:01:38,281
+Shoprite says its wider supply chain already moves millions of products to roughly three thousand stores, and that most South Africans live within five kilometres of one of its supermarkets.
+
+19
+00:01:38,281 --> 00:01:42,023
+A participating store can therefore act like a neighbourhood fulfilment centre.
+
+20
+00:01:42,023 --> 00:01:46,444
+The national supply chain handles most of the distance before the customer orders.
+
+21
+00:01:46,444 --> 00:01:48,825
+Sixty60 concentrates on the final five kilometres.
+
+22
+00:01:49,475 --> 00:01:51,686
+Proximity solves distance, but not uncertainty.
+
+23
+00:01:51,686 --> 00:01:59,795
+A grocery basket may include fresh produce, frozen products, household items, and products that another shopper has just taken from the shelf.
+
+24
+00:01:59,795 --> 00:02:03,481
+Shoprite says Sixty60 presents real-time pricing, stock, and range information.
+
+25
+00:02:03,481 --> 00:02:09,378
+Pickers are trained to select suitable products, while substitution logic and customer support deal with gaps.
+
+26
+00:02:09,378 --> 00:02:12,327
+The difficult metric is not only delivery time.
+
+27
+00:02:12,327 --> 00:02:16,750
+It is whether the customer receives the products that were actually ordered.
+
+28
+00:02:17,400 --> 00:02:22,027
+The platform has to manage more than a route on a map.
+
+29
+00:02:22,027 --> 00:02:29,738
+It must estimate demand, expose realistic delivery windows, balance orders across fulfilment points, and match available drivers to changing traffic.
+
+30
+00:02:29,738 --> 00:02:33,979
+Shoprite says bespoke demand-forecasting and route-optimisation software supports its delivery windows.
+
+31
+00:02:33,979 --> 00:02:40,148
+The system also has to cope with power interruptions, weather, month-end traffic, and sudden order surges.
+
+32
+00:02:40,148 --> 00:02:44,775
+The objective is planning and selection, not dangerous speed on the road.
+
+33
+00:02:45,425 --> 00:02:50,325
+Last-mile operations sit with Pingo, which recruits and manages the delivery fleet.
+
+34
+00:02:50,325 --> 00:02:55,225
+Pingo began as a joint venture between Shoprite and logistics company RTT.
+
+35
+00:02:55,225 --> 00:02:58,492
+Shoprite bought the remaining half in October 2024.
+
+36
+00:02:58,492 --> 00:03:07,475
+Full ownership gave the group tighter control over a capability it considers strategically important, including the technology roadmap behind fulfilment and delivery.
+
+37
+00:03:07,475 --> 00:03:13,600
+This matters because an hour-long promise is only as reliable as its least coordinated hand-off.
+
+38
+00:03:14,250 --> 00:03:23,854
+By the six months ending twenty-eight December 2025, Shoprite reported eleven point nine billion rand in sales through Sixty60, up thirty-four point six percent from the comparable period.
+
+39
+00:03:23,854 --> 00:03:30,714
+The service was operating from eight hundred and seventy-five stores nationwide, compared with six hundred and one a year earlier.
+
+40
+00:03:30,714 --> 00:03:32,772
+Those figures show adoption and reach.
+
+41
+00:03:32,772 --> 00:03:39,975
+They do not prove that Sixty60 is separately profitable, because Shoprite does not publish a standalone profit figure for the platform.
+
+42
+00:03:40,625 --> 00:03:52,005
+For the financial year ending June 2025, Shoprite reported that ninety-four percent of Sixty60 deliveries were on time and that order fulfilment reached ninety-six point eight percent.
+
+43
+00:03:52,005 --> 00:03:57,063
+The company also reported an average delivery time of about thirty-three minutes.
+
+44
+00:03:57,063 --> 00:04:07,600
+These are company-reported measures, not an independent service audit, but they reveal the operating target: protect both speed and basket completion while the network grows.
+
+45
+00:04:08,250 --> 00:04:11,684
+The original model uses existing supermarkets, but that creates a limit.
+
+46
+00:04:11,684 --> 00:04:16,679
+A busy shop must serve people in the aisles and online pickers at the same time.
+
+47
+00:04:16,679 --> 00:04:21,987
+In high-demand areas, Shoprite has added dark stores: fulfilment sites that are not open to ordinary shoppers.
+
+48
+00:04:21,987 --> 00:04:27,918
+By May 2026, the company had six such sites, while most orders still came from its broad store network.
+
+49
+00:04:27,918 --> 00:04:30,104
+Dark stores are not the original advantage.
+
+50
+00:04:30,104 --> 00:04:33,850
+They are a pressure-release valve where demand has outgrown normal store capacity.
+
+51
+00:04:34,500 --> 00:04:40,141
+A reliable one-hour service shifts pressure onto inventory accuracy, pickers, customer support, software, and delivery contractors.
+
+52
+00:04:40,141 --> 00:04:48,249
+Drivers working through Pingo are independent contractors rather than Shoprite employees, a model that has drawn questions about earnings, protections, and working conditions.
+
+53
+00:04:48,249 --> 00:04:53,889
+Shoprite says drivers receive training and insurance arrangements and that fuel support is calculated per delivery.
+
+54
+00:04:53,889 --> 00:05:02,350
+The fair conclusion is neither celebration nor condemnation: the convenience is real, and so are the labour and operating trade-offs that make it possible.
+
+55
+00:05:03,000 --> 00:05:08,650
+Sixty60 works because Shoprite connected assets it already had with capabilities it had to build.
+
+56
+00:05:08,650 --> 00:05:10,157
+Stores became fulfilment nodes.
+
+57
+00:05:10,157 --> 00:05:11,664
+Inventory became live data.
+
+58
+00:05:11,664 --> 00:05:13,547
+Pingo organised the final mile.
+
+59
+00:05:13,547 --> 00:05:15,054
+Software coordinated the clock.
+
+60
+00:05:15,054 --> 00:05:19,198
+The wider African lesson is not simply to copy turquoise scooters.
+
+61
+00:05:19,198 --> 00:05:25,601
+It is to find an existing network—shops, depots, agents, clinics, or branches—and redesign it as digital infrastructure.
+
+62
+00:05:25,601 --> 00:05:27,861
+The visible product is an app.
+
+63
+00:05:27,861 --> 00:05:30,875
+The defensible system is everything connected behind it.

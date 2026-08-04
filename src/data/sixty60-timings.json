@@ -1,0 +1,439 @@
+{
+  "fps": 30,
+  "totalFrames": 9972,
+  "audioPath": "audio/sixty60-pilot.wav",
+  "captionPath": "captions/sixty60-pilot.srt",
+  "narration": {
+    "voice": "af_heart",
+    "speechSpeed": 0.96,
+    "scenePauseSeconds": 0.65,
+    "finalHoldSeconds": 1.5
+  },
+  "scenes": [
+    {
+      "id": "hook",
+      "startFrame": 0,
+      "durationFrames": 759,
+      "startSeconds": 0,
+      "durationSeconds": 25.3,
+      "narrationDurationSeconds": 24.65,
+      "transitionPauseSeconds": 0.6500000000000021
+    },
+    {
+      "id": "promise",
+      "startFrame": 759,
+      "durationFrames": 806,
+      "startSeconds": 25.3,
+      "durationSeconds": 26.875,
+      "narrationDurationSeconds": 26.225,
+      "transitionPauseSeconds": 0.6499999999999986
+    },
+    {
+      "id": "pipeline",
+      "startFrame": 1565,
+      "durationFrames": 873,
+      "startSeconds": 52.175,
+      "durationSeconds": 29.1,
+      "narrationDurationSeconds": 28.45,
+      "transitionPauseSeconds": 0.6500000000000021
+    },
+    {
+      "id": "network",
+      "startFrame": 2438,
+      "durationFrames": 846,
+      "startSeconds": 81.275,
+      "durationSeconds": 28.2,
+      "narrationDurationSeconds": 27.55,
+      "transitionPauseSeconds": 0.6499999999999986
+    },
+    {
+      "id": "inventory",
+      "startFrame": 3284,
+      "durationFrames": 838,
+      "startSeconds": 109.47500000000001,
+      "durationSeconds": 27.925,
+      "narrationDurationSeconds": 27.275,
+      "transitionPauseSeconds": 0.6500000000000021
+    },
+    {
+      "id": "software",
+      "startFrame": 4122,
+      "durationFrames": 841,
+      "startSeconds": 137.4,
+      "durationSeconds": 28.025,
+      "narrationDurationSeconds": 27.375,
+      "transitionPauseSeconds": 0.6499999999999986
+    },
+    {
+      "id": "pingo",
+      "startFrame": 4963,
+      "durationFrames": 865,
+      "startSeconds": 165.425,
+      "durationSeconds": 28.825,
+      "narrationDurationSeconds": 28.175,
+      "transitionPauseSeconds": 0.6499999999999986
+    },
+    {
+      "id": "scale",
+      "startFrame": 5828,
+      "durationFrames": 791,
+      "startSeconds": 194.25,
+      "durationSeconds": 26.375,
+      "narrationDurationSeconds": 25.725,
+      "transitionPauseSeconds": 0.6499999999999986
+    },
+    {
+      "id": "performance",
+      "startFrame": 6619,
+      "durationFrames": 829,
+      "startSeconds": 220.625,
+      "durationSeconds": 27.625,
+      "narrationDurationSeconds": 26.975,
+      "transitionPauseSeconds": 0.6499999999999986
+    },
+    {
+      "id": "darkStores",
+      "startFrame": 7448,
+      "durationFrames": 788,
+      "startSeconds": 248.25,
+      "durationSeconds": 26.25,
+      "narrationDurationSeconds": 25.6,
+      "transitionPauseSeconds": 0.6499999999999986
+    },
+    {
+      "id": "tradeoffs",
+      "startFrame": 8235,
+      "durationFrames": 855,
+      "startSeconds": 274.5,
+      "durationSeconds": 28.5,
+      "narrationDurationSeconds": 27.85,
+      "transitionPauseSeconds": 0.6499999999999986
+    },
+    {
+      "id": "close",
+      "startFrame": 9090,
+      "durationFrames": 881,
+      "startSeconds": 303,
+      "durationSeconds": 29.375,
+      "narrationDurationSeconds": 27.875,
+      "transitionPauseSeconds": 1.5
+    }
+  ],
+  "captions": [
+    {
+      "startSeconds": 0,
+      "endSeconds": 7.951612903225806,
+      "text": "A Sixty60 order looks like a delivery story: tap a phone, a turquoise scooter appears, and groceries reach the door."
+    },
+    {
+      "startSeconds": 7.951612903225806,
+      "endSeconds": 13.12016129032258,
+      "text": "But the scooter is only the visible end of a much larger system."
+    },
+    {
+      "startSeconds": 13.12016129032258,
+      "endSeconds": 17.095967741935482,
+      "text": "The real advantage was built long before the order arrived."
+    },
+    {
+      "startSeconds": 17.095967741935482,
+      "endSeconds": 24.65,
+      "text": "It sits inside Shoprite's store network, supply chain, software, in-store picking operation, and control of the final five kilometres."
+    },
+    {
+      "startSeconds": 25.3,
+      "endSeconds": 27.455479452054796,
+      "text": "Checkers launched Sixty60 in November 2019."
+    },
+    {
+      "startSeconds": 27.455479452054796,
+      "endSeconds": 36.077397260273976,
+      "text": "Its name carried the proposition: customers should be able to shop in about sixty seconds and receive groceries in as little as sixty minutes."
+    },
+    {
+      "startSeconds": 36.077397260273976,
+      "endSeconds": 40.747602739726034,
+      "text": "That sounds like a marketing promise, but it is also an operating constraint."
+    },
+    {
+      "startSeconds": 40.747602739726034,
+      "endSeconds": 51.525000000000006,
+      "text": "Every part of the system has to know what is available, where it is, who will pick it, and whether a driver can complete the trip inside the promised window."
+    },
+    {
+      "startSeconds": 52.175,
+      "endSeconds": 54.51335616438356,
+      "text": "The basic journey has five links."
+    },
+    {
+      "startSeconds": 54.51335616438356,
+      "endSeconds": 56.46198630136986,
+      "text": "The customer places an order."
+    },
+    {
+      "startSeconds": 56.46198630136986,
+      "endSeconds": 61.528424657534245,
+      "text": "The platform connects that order to a nearby participating store or fulfilment site."
+    },
+    {
+      "startSeconds": 61.528424657534245,
+      "endSeconds": 66.98458904109589,
+      "text": "A picker assembles the basket using current stock information and deals with unavailable products."
+    },
+    {
+      "startSeconds": 66.98458904109589,
+      "endSeconds": 70.49212328767123,
+      "text": "The packed order is handed to the delivery operation."
+    },
+    {
+      "startSeconds": 70.49212328767123,
+      "endSeconds": 74.38938356164384,
+      "text": "A driver then covers the short trip to the customer."
+    },
+    {
+      "startSeconds": 74.38938356164384,
+      "endSeconds": 80.625,
+      "text": "Speed comes from reducing the distance and coordinating the hand-offs, not from expecting riders to race."
+    },
+    {
+      "startSeconds": 81.275,
+      "endSeconds": 85.6966049382716,
+      "text": "Traditional e-commerce often begins with a central warehouse and a long delivery route."
+    },
+    {
+      "startSeconds": 85.6966049382716,
+      "endSeconds": 88.07746913580247,
+      "text": "Sixty60 starts much closer to the customer."
+    },
+    {
+      "startSeconds": 88.07746913580247,
+      "endSeconds": 98.28117283950618,
+      "text": "Shoprite says its wider supply chain already moves millions of products to roughly three thousand stores, and that most South Africans live within five kilometres of one of its supermarkets."
+    },
+    {
+      "startSeconds": 98.28117283950618,
+      "endSeconds": 102.02253086419753,
+      "text": "A participating store can therefore act like a neighbourhood fulfilment centre."
+    },
+    {
+      "startSeconds": 102.02253086419753,
+      "endSeconds": 106.44413580246913,
+      "text": "The national supply chain handles most of the distance before the customer orders."
+    },
+    {
+      "startSeconds": 106.44413580246913,
+      "endSeconds": 108.825,
+      "text": "Sixty60 concentrates on the final five kilometres."
+    },
+    {
+      "startSeconds": 109.47500000000001,
+      "endSeconds": 111.6864864864865,
+      "text": "Proximity solves distance, but not uncertainty."
+    },
+    {
+      "startSeconds": 111.6864864864865,
+      "endSeconds": 119.79527027027028,
+      "text": "A grocery basket may include fresh produce, frozen products, household items, and products that another shopper has just taken from the shelf."
+    },
+    {
+      "startSeconds": 119.79527027027028,
+      "endSeconds": 123.48108108108109,
+      "text": "Shoprite says Sixty60 presents real-time pricing, stock, and range information."
+    },
+    {
+      "startSeconds": 123.48108108108109,
+      "endSeconds": 129.3783783783784,
+      "text": "Pickers are trained to select suitable products, while substitution logic and customer support deal with gaps."
+    },
+    {
+      "startSeconds": 129.3783783783784,
+      "endSeconds": 132.32702702702704,
+      "text": "The difficult metric is not only delivery time."
+    },
+    {
+      "startSeconds": 132.32702702702704,
+      "endSeconds": 136.75,
+      "text": "It is whether the customer receives the products that were actually ordered."
+    },
+    {
+      "startSeconds": 137.4,
+      "endSeconds": 142.0267605633803,
+      "text": "The platform has to manage more than a route on a map."
+    },
+    {
+      "startSeconds": 142.0267605633803,
+      "endSeconds": 149.7380281690141,
+      "text": "It must estimate demand, expose realistic delivery windows, balance orders across fulfilment points, and match available drivers to changing traffic."
+    },
+    {
+      "startSeconds": 149.7380281690141,
+      "endSeconds": 153.97922535211268,
+      "text": "Shoprite says bespoke demand-forecasting and route-optimisation software supports its delivery windows."
+    },
+    {
+      "startSeconds": 153.97922535211268,
+      "endSeconds": 160.14823943661972,
+      "text": "The system also has to cope with power interruptions, weather, month-end traffic, and sudden order surges."
+    },
+    {
+      "startSeconds": 160.14823943661972,
+      "endSeconds": 164.775,
+      "text": "The objective is planning and selection, not dangerous speed on the road."
+    },
+    {
+      "startSeconds": 165.425,
+      "endSeconds": 170.32500000000002,
+      "text": "Last-mile operations sit with Pingo, which recruits and manages the delivery fleet."
+    },
+    {
+      "startSeconds": 170.32500000000002,
+      "endSeconds": 175.22500000000002,
+      "text": "Pingo began as a joint venture between Shoprite and logistics company RTT."
+    },
+    {
+      "startSeconds": 175.22500000000002,
+      "endSeconds": 178.4916666666667,
+      "text": "Shoprite bought the remaining half in October 2024."
+    },
+    {
+      "startSeconds": 178.4916666666667,
+      "endSeconds": 187.47500000000002,
+      "text": "Full ownership gave the group tighter control over a capability it considers strategically important, including the technology roadmap behind fulfilment and delivery."
+    },
+    {
+      "startSeconds": 187.47500000000002,
+      "endSeconds": 193.60000000000002,
+      "text": "This matters because an hour-long promise is only as reliable as its least coordinated hand-off."
+    },
+    {
+      "startSeconds": 194.25,
+      "endSeconds": 203.854,
+      "text": "By the six months ending twenty-eight December 2025, Shoprite reported eleven point nine billion rand in sales through Sixty60, up thirty-four point six percent from the comparable period."
+    },
+    {
+      "startSeconds": 203.854,
+      "endSeconds": 210.71400000000003,
+      "text": "The service was operating from eight hundred and seventy-five stores nationwide, compared with six hundred and one a year earlier."
+    },
+    {
+      "startSeconds": 210.71400000000003,
+      "endSeconds": 212.77200000000002,
+      "text": "Those figures show adoption and reach."
+    },
+    {
+      "startSeconds": 212.77200000000002,
+      "endSeconds": 219.975,
+      "text": "They do not prove that Sixty60 is separately profitable, because Shoprite does not publish a standalone profit figure for the platform."
+    },
+    {
+      "startSeconds": 220.625,
+      "endSeconds": 232.005078125,
+      "text": "For the financial year ending June 2025, Shoprite reported that ninety-four percent of Sixty60 deliveries were on time and that order fulfilment reached ninety-six point eight percent."
+    },
+    {
+      "startSeconds": 232.005078125,
+      "endSeconds": 237.06289062500002,
+      "text": "The company also reported an average delivery time of about thirty-three minutes."
+    },
+    {
+      "startSeconds": 237.06289062500002,
+      "endSeconds": 247.6,
+      "text": "These are company-reported measures, not an independent service audit, but they reveal the operating target: protect both speed and basket completion while the network grows."
+    },
+    {
+      "startSeconds": 248.25,
+      "endSeconds": 251.68414634146342,
+      "text": "The original model uses existing supermarkets, but that creates a limit."
+    },
+    {
+      "startSeconds": 251.68414634146342,
+      "endSeconds": 256.67926829268293,
+      "text": "A busy shop must serve people in the aisles and online pickers at the same time."
+    },
+    {
+      "startSeconds": 256.67926829268293,
+      "endSeconds": 261.98658536585367,
+      "text": "In high-demand areas, Shoprite has added dark stores: fulfilment sites that are not open to ordinary shoppers."
+    },
+    {
+      "startSeconds": 261.98658536585367,
+      "endSeconds": 267.91829268292685,
+      "text": "By May 2026, the company had six such sites, while most orders still came from its broad store network."
+    },
+    {
+      "startSeconds": 267.91829268292685,
+      "endSeconds": 270.1036585365854,
+      "text": "Dark stores are not the original advantage."
+    },
+    {
+      "startSeconds": 270.1036585365854,
+      "endSeconds": 273.85,
+      "text": "They are a pressure-release valve where demand has outgrown normal store capacity."
+    },
+    {
+      "startSeconds": 274.5,
+      "endSeconds": 280.1405063291139,
+      "text": "A reliable one-hour service shifts pressure onto inventory accuracy, pickers, customer support, software, and delivery contractors."
+    },
+    {
+      "startSeconds": 280.1405063291139,
+      "endSeconds": 288.24873417721517,
+      "text": "Drivers working through Pingo are independent contractors rather than Shoprite employees, a model that has drawn questions about earnings, protections, and working conditions."
+    },
+    {
+      "startSeconds": 288.24873417721517,
+      "endSeconds": 293.8892405063291,
+      "text": "Shoprite says drivers receive training and insurance arrangements and that fuel support is calculated per delivery."
+    },
+    {
+      "startSeconds": 293.8892405063291,
+      "endSeconds": 302.35,
+      "text": "The fair conclusion is neither celebration nor condemnation: the convenience is real, and so are the labour and operating trade-offs that make it possible."
+    },
+    {
+      "startSeconds": 303,
+      "endSeconds": 308.6503378378378,
+      "text": "Sixty60 works because Shoprite connected assets it already had with capabilities it had to build."
+    },
+    {
+      "startSeconds": 308.6503378378378,
+      "endSeconds": 310.1570945945946,
+      "text": "Stores became fulfilment nodes."
+    },
+    {
+      "startSeconds": 310.1570945945946,
+      "endSeconds": 311.66385135135135,
+      "text": "Inventory became live data."
+    },
+    {
+      "startSeconds": 311.66385135135135,
+      "endSeconds": 313.5472972972973,
+      "text": "Pingo organised the final mile."
+    },
+    {
+      "startSeconds": 313.5472972972973,
+      "endSeconds": 315.05405405405406,
+      "text": "Software coordinated the clock."
+    },
+    {
+      "startSeconds": 315.05405405405406,
+      "endSeconds": 319.19763513513516,
+      "text": "The wider African lesson is not simply to copy turquoise scooters."
+    },
+    {
+      "startSeconds": 319.19763513513516,
+      "endSeconds": 325.60135135135135,
+      "text": "It is to find an existing network—shops, depots, agents, clinics, or branches—and redesign it as digital infrastructure."
+    },
+    {
+      "startSeconds": 325.60135135135135,
+      "endSeconds": 327.8614864864865,
+      "text": "The visible product is an app."
+    },
+    {
+      "startSeconds": 327.8614864864865,
+      "endSeconds": 330.875,
+      "text": "The defensible system is everything connected behind it."
+    }
+  ]
+}

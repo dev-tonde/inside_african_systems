@@ -1,0 +1,182 @@
+[
+  {
+    "id": "hook",
+    "chapter": "The real speed advantage",
+    "kind": "hook",
+    "eyebrow": "EPISODE 01 · SOUTH AFRICA",
+    "title": "The final five kilometres",
+    "narration": "A Sixty60 order looks like a delivery story: tap a phone, a turquoise scooter appears, and groceries reach the door. But the scooter is only the visible end of a much larger system. The real advantage was built long before the order arrived. It sits inside Shoprite's store network, supply chain, software, in-store picking operation, and control of the final five kilometres.",
+    "claimIds": ["C01", "C03"],
+    "sourceLine": "Shoprite / Financial Mail, 2025",
+    "visual": {
+      "headline": "60 MINUTES",
+      "support": "The scooter is only the final link.",
+      "items": ["PHONE", "STORE", "PICKER", "PINGO", "DOOR"]
+    }
+  },
+  {
+    "id": "promise",
+    "chapter": "The promise",
+    "kind": "timeline",
+    "eyebrow": "THE PROMISE",
+    "title": "Order quickly. Deliver within an hour.",
+    "narration": "Checkers launched Sixty60 in November 2019. Its name carried the proposition: customers should be able to shop in about sixty seconds and receive groceries in as little as sixty minutes. That sounds like a marketing promise, but it is also an operating constraint. Every part of the system has to know what is available, where it is, who will pick it, and whether a driver can complete the trip inside the promised window.",
+    "claimIds": ["C01", "C02"],
+    "sourceLine": "Shoprite statements reported by MyBroadband, 2024–2025",
+    "visual": {
+      "headline": "NOV 2019",
+      "support": "A promise becomes an operating deadline.",
+      "items": ["ORDER", "PICK", "PACK", "RIDE"]
+    }
+  },
+  {
+    "id": "pipeline",
+    "chapter": "One order, five systems",
+    "kind": "pipeline",
+    "eyebrow": "ONE ORDER · FIVE SYSTEMS",
+    "title": "The order is routed to a nearby fulfilment point",
+    "narration": "The basic journey has five links. The customer places an order. The platform connects that order to a nearby participating store or fulfilment site. A picker assembles the basket using current stock information and deals with unavailable products. The packed order is handed to the delivery operation. A driver then covers the short trip to the customer. Speed comes from reducing the distance and coordinating the hand-offs, not from expecting riders to race.",
+    "claimIds": ["C03", "C04", "C05"],
+    "sourceLine": "Financial Mail and MyBroadband interviews with Shoprite",
+    "visual": {
+      "headline": "1 ORDER",
+      "support": "Speed is coordination between hand-offs.",
+      "items": ["CUSTOMER", "PLATFORM", "STORE", "PICKER", "DRIVER"]
+    }
+  },
+  {
+    "id": "network",
+    "chapter": "The store network becomes infrastructure",
+    "kind": "network",
+    "eyebrow": "THE STRUCTURAL ADVANTAGE",
+    "title": "Existing supermarkets become local fulfilment nodes",
+    "narration": "Traditional e-commerce often begins with a central warehouse and a long delivery route. Sixty60 starts much closer to the customer. Shoprite says its wider supply chain already moves millions of products to roughly three thousand stores, and that most South Africans live within five kilometres of one of its supermarkets. A participating store can therefore act like a neighbourhood fulfilment centre. The national supply chain handles most of the distance before the customer orders. Sixty60 concentrates on the final five kilometres.",
+    "claimIds": ["C03", "C06"],
+    "sourceLine": "Financial Mail, 3 July 2025",
+    "visual": {
+      "headline": "THE FINAL 5 KM",
+      "support": "The long journey happened before checkout.",
+      "items": ["SUPPLIERS", "DISTRIBUTION", "LOCAL STORE", "HOME"]
+    }
+  },
+  {
+    "id": "inventory",
+    "chapter": "The difficult part is inside the store",
+    "kind": "inventory",
+    "eyebrow": "REAL-TIME RETAIL",
+    "title": "A fast promise needs believable stock",
+    "narration": "Proximity solves distance, but not uncertainty. A grocery basket may include fresh produce, frozen products, household items, and products that another shopper has just taken from the shelf. Shoprite says Sixty60 presents real-time pricing, stock, and range information. Pickers are trained to select suitable products, while substitution logic and customer support deal with gaps. The difficult metric is not only delivery time. It is whether the customer receives the products that were actually ordered.",
+    "claimIds": ["C05", "C07"],
+    "sourceLine": "MyBroadband, 25 April 2025; Financial Mail, 2025",
+    "visual": {
+      "headline": "STOCK ≠ CERTAINTY",
+      "support": "Fast delivery fails if the basket is wrong.",
+      "items": ["PRICE", "AVAILABILITY", "FRESHNESS", "SUBSTITUTION"]
+    }
+  },
+  {
+    "id": "software",
+    "chapter": "Software protects the promise",
+    "kind": "control",
+    "eyebrow": "THE CONTROL LAYER",
+    "title": "Forecast demand before the surge arrives",
+    "narration": "The platform has to manage more than a route on a map. It must estimate demand, expose realistic delivery windows, balance orders across fulfilment points, and match available drivers to changing traffic. Shoprite says bespoke demand-forecasting and route-optimisation software supports its delivery windows. The system also has to cope with power interruptions, weather, month-end traffic, and sudden order surges. The objective is planning and selection, not dangerous speed on the road.",
+    "claimIds": ["C08"],
+    "sourceLine": "MyBroadband, 25 April 2025",
+    "visual": {
+      "headline": "FORECAST → ALLOCATE → ROUTE",
+      "support": "The clock is managed before the scooter leaves.",
+      "items": ["DEMAND", "CAPACITY", "WINDOW", "ROUTE"]
+    }
+  },
+  {
+    "id": "pingo",
+    "chapter": "Owning the last mile",
+    "kind": "ownership",
+    "eyebrow": "THE DELIVERY LAYER",
+    "title": "Pingo connects stores to the doorstep",
+    "narration": "Last-mile operations sit with Pingo, which recruits and manages the delivery fleet. Pingo began as a joint venture between Shoprite and logistics company RTT. Shoprite bought the remaining half in October 2024. Full ownership gave the group tighter control over a capability it considers strategically important, including the technology roadmap behind fulfilment and delivery. This matters because an hour-long promise is only as reliable as its least coordinated hand-off.",
+    "claimIds": ["C09"],
+    "sourceLine": "MyBroadband, 28 November 2024",
+    "visual": {
+      "headline": "FULL CONTROL · 2024",
+      "support": "The last mile moved inside the group.",
+      "items": ["SHOPRITE", "PINGO", "DRIVERS", "CUSTOMERS"]
+    }
+  },
+  {
+    "id": "scale",
+    "chapter": "Scale without slowing down",
+    "kind": "metric",
+    "eyebrow": "SIX MONTHS TO 28 DEC 2025",
+    "title": "R11.9 billion in platform sales",
+    "narration": "By the six months ending twenty-eight December 2025, Shoprite reported eleven point nine billion rand in sales through Sixty60, up thirty-four point six percent from the comparable period. The service was operating from eight hundred and seventy-five stores nationwide, compared with six hundred and one a year earlier. Those figures show adoption and reach. They do not prove that Sixty60 is separately profitable, because Shoprite does not publish a standalone profit figure for the platform.",
+    "claimIds": ["C10", "C11", "C12"],
+    "sourceLine": "Shoprite interim results, reported 3 March 2026",
+    "visual": {
+      "headline": "R11.9bn",
+      "support": "+34.6% platform sales · 875 stores",
+      "items": ["SALES", "GROWTH", "REACH"]
+    }
+  },
+  {
+    "id": "performance",
+    "chapter": "What performance really means",
+    "kind": "metricGrid",
+    "eyebrow": "REPORTED PERFORMANCE",
+    "title": "Fast, on time, and mostly complete",
+    "narration": "For the financial year ending June 2025, Shoprite reported that ninety-four percent of Sixty60 deliveries were on time and that order fulfilment reached ninety-six point eight percent. The company also reported an average delivery time of about thirty-three minutes. These are company-reported measures, not an independent service audit, but they reveal the operating target: protect both speed and basket completion while the network grows.",
+    "claimIds": ["C13"],
+    "sourceLine": "Shoprite FY2025 results, reported by MyBroadband",
+    "visual": {
+      "headline": "94% · 96.8% · 33 MIN",
+      "support": "On time · order fulfilment · average delivery",
+      "items": ["TIME", "BASKET", "SCALE"]
+    }
+  },
+  {
+    "id": "darkStores",
+    "chapter": "When normal stores reach capacity",
+    "kind": "capacity",
+    "eyebrow": "THE CAPACITY RELIEF VALVE",
+    "title": "Dark stores absorb pressure in busy areas",
+    "narration": "The original model uses existing supermarkets, but that creates a limit. A busy shop must serve people in the aisles and online pickers at the same time. In high-demand areas, Shoprite has added dark stores: fulfilment sites that are not open to ordinary shoppers. By May 2026, the company had six such sites, while most orders still came from its broad store network. Dark stores are not the original advantage. They are a pressure-release valve where demand has outgrown normal store capacity.",
+    "claimIds": ["C14"],
+    "sourceLine": "MyBroadband, 29 May 2026",
+    "visual": {
+      "headline": "6 DARK STORES",
+      "support": "Extra capacity where ordinary stores are full.",
+      "items": ["STORE DEMAND", "ONLINE DEMAND", "RELIEF CAPACITY"]
+    }
+  },
+  {
+    "id": "tradeoffs",
+    "chapter": "The system has costs and limits",
+    "kind": "tradeoff",
+    "eyebrow": "THE TRADE-OFFS",
+    "title": "Convenience transfers pressure into operations",
+    "narration": "A reliable one-hour service shifts pressure onto inventory accuracy, pickers, customer support, software, and delivery contractors. Drivers working through Pingo are independent contractors rather than Shoprite employees, a model that has drawn questions about earnings, protections, and working conditions. Shoprite says drivers receive training and insurance arrangements and that fuel support is calculated per delivery. The fair conclusion is neither celebration nor condemnation: the convenience is real, and so are the labour and operating trade-offs that make it possible.",
+    "claimIds": ["C15", "C16"],
+    "sourceLine": "GroundUp/News24, 2023; Financial Mail, 2025",
+    "visual": {
+      "headline": "CONVENIENCE HAS A COST",
+      "support": "Technology does not remove operational pressure.",
+      "items": ["CUSTOMERS", "PICKERS", "DRIVERS", "SUPPORT"]
+    }
+  },
+  {
+    "id": "close",
+    "chapter": "The wider lesson",
+    "kind": "close",
+    "eyebrow": "INSIDE AFRICAN SYSTEMS",
+    "title": "Old infrastructure can become a digital advantage",
+    "narration": "Sixty60 works because Shoprite connected assets it already had with capabilities it had to build. Stores became fulfilment nodes. Inventory became live data. Pingo organised the final mile. Software coordinated the clock. The wider African lesson is not simply to copy turquoise scooters. It is to find an existing network—shops, depots, agents, clinics, or branches—and redesign it as digital infrastructure. The visible product is an app. The defensible system is everything connected behind it.",
+    "claimIds": ["C03", "C09", "C17"],
+    "sourceLine": "Inside African Systems analysis based on cited evidence",
+    "visual": {
+      "headline": "THE APP IS THE SURFACE",
+      "support": "The network is the system.",
+      "items": ["PHYSICAL NETWORK", "LIVE DATA", "LAST MILE", "COORDINATION"]
+    }
+  }
+]

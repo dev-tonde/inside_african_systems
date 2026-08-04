@@ -1,0 +1,16 @@
+node_modules/
+output/*
+!output/.gitkeep
+public/audio/*
+!public/audio/.gitkeep
+.wrangler/
+.dev.vars
+.dev.vars.*
+.DS_Store
+*.log
+.env
+.env.*
+!.env.example
+coverage/
+playwright-report/
+test-results/
