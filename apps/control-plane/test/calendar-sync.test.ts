@@ -317,6 +317,8 @@ describe("Calendar API client", () => {
       {...timedEvent(), start: {dateTime: "2026-08-04T11:00:00+02:60"}},
       {...timedEvent(), start: {dateTime: "2026-08-04T24:00:00+02:00"}},
       {...timedEvent(), start: {dateTime: "2026-08-04T11:00+02:00"}},
+      {...timedEvent(), start: {dateTime: "2026-08-04T11:00:00.+02:00"}},
+      {...timedEvent(), start: {dateTime: "2026-08-04T11:00:00.nope+02:00"}},
     ];
     for (const event of invalidEvents) {
       const client = createCalendarClient(
@@ -326,6 +328,46 @@ describe("Calendar API client", () => {
       await expect(client.listInitial({timeMin: now.toISOString(), timeMax: now.toISOString()}))
         .rejects.toThrow("Calendar response was invalid");
     }
+  });
+
+  it("accepts arbitrary RFC3339 fractional precision and truncates deterministically to milliseconds", async () => {
+    const repository = new FakeCalendarRepository();
+    const client = createCalendarClient(
+      "access-token",
+      (async () => json({
+        items: [
+          {
+            ...timedEvent("fraction-4"),
+            start: {dateTime: "2026-08-04T11:00:00.1234+02:00"},
+            end: {dateTime: "2026-08-04T11:00:01.9876+02:00"},
+          },
+          {
+            ...timedEvent("fraction-6"),
+            start: {dateTime: "2026-08-04T11:00:02.123456+02:00"},
+            end: {dateTime: "2026-08-04T11:00:03.987654+02:00"},
+          },
+          {
+            ...timedEvent("fraction-long"),
+            start: {dateTime: "2026-08-04T11:00:04.123456789012+02:00"},
+            end: {dateTime: "2026-08-04T11:00:05.987654321098+02:00"},
+          },
+          {
+            ...timedEvent("fraction-short"),
+            start: {dateTime: "2026-08-04T11:00:06.1+02:00"},
+            end: {dateTime: "2026-08-04T11:00:07.2+02:00"},
+          },
+        ],
+        nextSyncToken: "sync-2",
+      })) as typeof fetch,
+    );
+
+    await syncCalendarAccount(baseInput({client, repository}));
+    expect(repository.events.map(({providerEventId, startsAt, endsAt}) => ({providerEventId, startsAt, endsAt}))).toEqual([
+      {providerEventId: "fraction-4", startsAt: "2026-08-04T09:00:00.123Z", endsAt: "2026-08-04T09:00:01.987Z"},
+      {providerEventId: "fraction-6", startsAt: "2026-08-04T09:00:02.123Z", endsAt: "2026-08-04T09:00:03.987Z"},
+      {providerEventId: "fraction-long", startsAt: "2026-08-04T09:00:04.123Z", endsAt: "2026-08-04T09:00:05.987Z"},
+      {providerEventId: "fraction-short", startsAt: "2026-08-04T09:00:06.100Z", endsAt: "2026-08-04T09:00:07.200Z"},
+    ]);
   });
 
   it("resolves offsetless Johannesburg event times in their supplied IANA zone", async () => {
@@ -344,6 +386,24 @@ describe("Calendar API client", () => {
 
     await syncCalendarAccount(baseInput({client, repository}));
     expect(repository.events).toMatchObject([{startsAt: "2026-08-04T09:00:00.000Z", endsAt: "2026-08-04T10:00:00.000Z"}]);
+  });
+
+  it("resolves offsetless RFC3339 fractional values through their supplied IANA zone", async () => {
+    const repository = new FakeCalendarRepository();
+    const client = createCalendarClient(
+      "access-token",
+      (async () => json({
+        items: [{
+          ...timedEvent(),
+          start: {dateTime: "2026-08-04T11:00:00.123456", timeZone: "Africa/Johannesburg"},
+          end: {dateTime: "2026-08-04T12:00:00.987654", timeZone: "Africa/Johannesburg"},
+        }],
+        nextSyncToken: "sync-2",
+      })) as typeof fetch,
+    );
+
+    await syncCalendarAccount(baseInput({client, repository}));
+    expect(repository.events).toMatchObject([{startsAt: "2026-08-04T09:00:00.123Z", endsAt: "2026-08-04T10:00:00.987Z"}]);
   });
 
   it("fails closed for offsetless invalid zones and DST gaps or folds", async () => {

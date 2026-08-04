@@ -52,7 +52,9 @@ const parseDate = (value: string): LocalDateTime => {
   return local;
 };
 
-const dateTimePattern = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?(Z|[+-]\d{2}:\d{2})?$/u;
+// JavaScript keeps milliseconds only. RFC3339 fractions are therefore truncated (never rounded)
+// after three digits, so provider precision can never advance an event into the next millisecond.
+const dateTimePattern = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?(Z|[+-]\d{2}:\d{2})?$/u;
 
 const parseDateTime = (value: string): {local: LocalDateTime; offsetMinutes: number | null} => {
   const match = dateTimePattern.exec(value);
@@ -64,7 +66,7 @@ const parseDateTime = (value: string): {local: LocalDateTime; offsetMinutes: num
     hour: Number(match[4]),
     minute: Number(match[5]),
     second: Number(match[6]),
-    millisecond: match[7] === undefined ? 0 : Number(match[7].padEnd(3, "0")),
+    millisecond: match[7] === undefined ? 0 : Number(match[7].slice(0, 3).padEnd(3, "0")),
   };
   const localAsUtc = utcDate(local);
   if (
