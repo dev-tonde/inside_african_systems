@@ -12,14 +12,14 @@ describe("health route", () => {
     });
   });
 
-  it("returns the uncached structured not-found contract for an unknown route", async () => {
+  it("protects unknown API routes with the uncached auth boundary", async () => {
     const response = await SELF.fetch("https://lifeos.test/api/unknown");
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(401);
     expect(response.headers.get("cache-control")).toBe("no-store");
     await expect(response.json()).resolves.toMatchObject({
       error: {
-        code: "not_found",
-        message: "Route not found",
+        code: "unauthorized",
+        message: "Authentication required",
       },
     });
   });
