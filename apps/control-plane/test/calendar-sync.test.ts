@@ -134,6 +134,7 @@ describe("Calendar synchronization", () => {
     expect(repository.events).toHaveLength(2);
     expect(repository.events[0]).toMatchObject({startsAt: "2026-08-04T09:00:00.000Z", attendeeCount: 1});
     expect(repository.events[1]?.startsAt).toBe("2026-08-04T22:00:00.000Z");
+    expect(repository.events[1]?.endsAt).toBe("2026-08-05T22:00:00.000Z");
   });
 
   it("uses exactly seven days before and 30 days after now for a full snapshot", async () => {
@@ -308,6 +309,79 @@ describe("Calendar API client", () => {
 
     await expect(client.listInitial({timeMin: now.toISOString(), timeMax: now.toISOString()})).rejects.toThrow("Calendar response was invalid");
   });
+
+  it("strictly validates offset-bearing RFC3339 values instead of accepting Date rollovers", async () => {
+    const invalidEvents: GoogleCalendarEvent[] = [
+      {...timedEvent(), start: {dateTime: "2026-02-30T11:00:00+02:00"}},
+      {...timedEvent(), start: {dateTime: "2026-08-04T11:00:00+24:00"}},
+      {...timedEvent(), start: {dateTime: "2026-08-04T11:00:00+02:60"}},
+      {...timedEvent(), start: {dateTime: "2026-08-04T24:00:00+02:00"}},
+      {...timedEvent(), start: {dateTime: "2026-08-04T11:00+02:00"}},
+    ];
+    for (const event of invalidEvents) {
+      const client = createCalendarClient(
+        "access-token",
+        (async () => json({items: [event], nextSyncToken: "sync-2"})) as typeof fetch,
+      );
+      await expect(client.listInitial({timeMin: now.toISOString(), timeMax: now.toISOString()}))
+        .rejects.toThrow("Calendar response was invalid");
+    }
+  });
+
+  it("resolves offsetless Johannesburg event times in their supplied IANA zone", async () => {
+    const repository = new FakeCalendarRepository();
+    const client = createCalendarClient(
+      "access-token",
+      (async () => json({
+        items: [{
+          ...timedEvent(),
+          start: {dateTime: "2026-08-04T11:00:00", timeZone: "Africa/Johannesburg"},
+          end: {dateTime: "2026-08-04T12:00:00", timeZone: "Africa/Johannesburg"},
+        }],
+        nextSyncToken: "sync-2",
+      })) as typeof fetch,
+    );
+
+    await syncCalendarAccount(baseInput({client, repository}));
+    expect(repository.events).toMatchObject([{startsAt: "2026-08-04T09:00:00.000Z", endsAt: "2026-08-04T10:00:00.000Z"}]);
+  });
+
+  it("fails closed for offsetless invalid zones and DST gaps or folds", async () => {
+    const invalidEvents: GoogleCalendarEvent[] = [
+      {...timedEvent(), start: {dateTime: "2026-08-04T11:00:00", timeZone: "Mars/Olympus"}},
+      {...timedEvent(), start: {dateTime: "2026-03-08T02:30:00", timeZone: "America/New_York"}},
+      {...timedEvent(), start: {dateTime: "2026-11-01T01:30:00", timeZone: "America/New_York"}},
+      {...allDayEvent(), start: {date: "2026-08-05", timeZone: "Mars/Olympus"}},
+    ];
+    for (const event of invalidEvents) {
+      const client = createCalendarClient(
+        "access-token",
+        (async () => json({items: [event], nextSyncToken: "sync-2"})) as typeof fetch,
+      );
+      await expect(client.listInitial({timeMin: now.toISOString(), timeMax: now.toISOString()}))
+        .rejects.toThrow("Calendar response was invalid");
+    }
+  });
+
+  it("rejects mixed, zero-length, and reversed event intervals before they can be persisted", async () => {
+    const invalidEvents: GoogleCalendarEvent[] = [
+      {...timedEvent(), end: {date: "2026-08-05"}},
+      {...timedEvent(), end: {dateTime: "2026-08-04T11:00:00+02:00", timeZone: "Africa/Johannesburg"}},
+      {...timedEvent(), end: {dateTime: "2026-08-04T10:00:00+02:00", timeZone: "Africa/Johannesburg"}},
+      {...timedEvent(), start: {dateTime: "2026-08-04T11:00:00+02:00", date: "2026-08-04"}},
+      {...timedEvent(), start: {timeZone: "Africa/Johannesburg"}},
+      {...allDayEvent(), end: {date: "2026-08-05"}},
+      {...allDayEvent(), end: {date: "2026-08-04"}},
+    ];
+    for (const event of invalidEvents) {
+      const client = createCalendarClient(
+        "access-token",
+        (async () => json({items: [event], nextSyncToken: "sync-2"})) as typeof fetch,
+      );
+      await expect(client.listInitial({timeMin: now.toISOString(), timeMax: now.toISOString()}))
+        .rejects.toThrow("Calendar response was invalid");
+    }
+  });
 });
 
 const calendarRepositoryMigrations = [
@@ -357,5 +431,21 @@ describe("D1 calendar repository", () => {
     await expect(repository.getCursor("account-1")).resolves.toBe("sync-2");
     await expect(testDb.prepare("SELECT * FROM calendar_events WHERE account_id = ?").bind("account-1").all())
       .resolves.toMatchObject({results: []});
+  });
+
+  it("deletes only the requested account's cancelled event", async () => {
+    await testDb
+      .prepare("INSERT INTO accounts (id, user_id, google_subject, email, context, encrypted_refresh_token, scopes_json, connected_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+      .bind("account-2", "user-1", "second-subject", "second@example.com", "personal", "encrypted", "[]", now.toISOString())
+      .run();
+    const repository = createCalendarRepository(testDb);
+    await repository.upsertEvents([
+      normalizeGoogleEvent("account-1", timedEvent("same-event"))!,
+      normalizeGoogleEvent("account-2", timedEvent("same-event"))!,
+    ], now.toISOString());
+
+    await expect(repository.deleteEvents("account-1", ["same-event"])).resolves.toBe(1);
+    const rows = await testDb.prepare("SELECT account_id FROM calendar_events WHERE provider_event_id = ? ORDER BY account_id").bind("same-event").all<{account_id: string}>();
+    expect(rows.results).toEqual([{account_id: "account-2"}]);
   });
 });

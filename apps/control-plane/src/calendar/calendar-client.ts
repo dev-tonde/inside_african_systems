@@ -1,3 +1,5 @@
+import {normalizeCalendarDatePart, normalizeCalendarInterval, type CalendarDatePart} from "./calendar-time";
+
 export type GoogleCalendarEvent = {
   id: string;
   etag: string;
@@ -36,27 +38,22 @@ const invalidEnvelope = (): never => {
   throw new Error("Calendar response was invalid");
 };
 
-const validDate = (value: string): boolean => {
-  if (!/^\d{4}-\d{2}-\d{2}$/u.test(value)) return false;
-  const [year, month, day] = value.split("-").map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
-};
-
-const validDateTime = (value: string): boolean =>
-  /^\d{4}-\d{2}-\d{2}T/u.test(value) && !Number.isNaN(new Date(value).getTime());
-
-const validateDatePart = (value: unknown): {dateTime?: string; date?: string; timeZone?: string} => {
+const validateDatePart = (value: unknown): CalendarDatePart => {
   if (!isRecord(value)) return invalidEnvelope();
   const dateTime = value.dateTime;
   const date = value.date;
   const timeZone = value.timeZone;
   if (dateTime !== undefined && !isNonEmptyString(dateTime)) return invalidEnvelope();
-  if (date !== undefined && (!isNonEmptyString(date) || !validDate(date))) return invalidEnvelope();
+  if (date !== undefined && !isNonEmptyString(date)) return invalidEnvelope();
   if (timeZone !== undefined && !isNonEmptyString(timeZone)) return invalidEnvelope();
   if ((dateTime === undefined && date === undefined) || (dateTime !== undefined && date !== undefined)) return invalidEnvelope();
-  if (dateTime !== undefined && !validDateTime(dateTime)) return invalidEnvelope();
-  return {dateTime: dateTime as string | undefined, date: date as string | undefined, timeZone: timeZone as string | undefined};
+  const part = {dateTime: dateTime as string | undefined, date: date as string | undefined, timeZone: timeZone as string | undefined};
+  try {
+    normalizeCalendarDatePart(part);
+  } catch {
+    return invalidEnvelope();
+  }
+  return part;
 };
 
 const validateOptionalPerson = (value: unknown): {email?: string} | undefined => {
@@ -94,6 +91,13 @@ const validateEvent = (value: unknown): GoogleCalendarEvent => {
   const organizer = validateOptionalPerson(value.organizer);
   const attendees = validateAttendees(value.attendees);
   if (!isCancelled && (start === undefined || end === undefined)) return invalidEnvelope();
+  if (start && end) {
+    try {
+      normalizeCalendarInterval(start, end);
+    } catch {
+      return invalidEnvelope();
+    }
+  }
   return {
     id: value.id,
     etag: value.etag,
