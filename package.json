@@ -14,7 +14,8 @@
     "pilot:render": "remotion render src/index.ts Sixty60Pilot output/sixty60-pilot.mp4",
     "pilot:thumbnail": "remotion still src/index.ts Sixty60Thumbnail output/sixty60-thumbnail.png",
     "typecheck": "tsc --noEmit",
-    "check": "npm run typecheck"
+    "check": "npm run typecheck",
+    "test": "npm run typecheck"
   },
   "dependencies": {
     "@remotion/cli": "4.0.500",
