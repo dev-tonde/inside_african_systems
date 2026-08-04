@@ -1,0 +1,25 @@
+{
+  "name": "@lifeos/control-plane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:migrate:local": "wrangler d1 migrations apply lifeos --local",
+    "db:migrate:remote": "wrangler d1 migrations apply lifeos --remote"
+  },
+  "dependencies": {
+    "@lifeos/contracts": "0.1.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "0.20.1",
+    "@cloudflare/workers-types": "5.20260801.1",
+    "typescript": "5.8.3",
+    "vitest": "4.1.10",
+    "wrangler": "4.118.0"
+  }
+}
