@@ -1,6 +1,12 @@
 import {applyD1Migrations, env} from "cloudflare:test";
 import {beforeEach, describe, expect, it} from "vitest";
-import {createGmailClient, GmailHistoryExpiredError, type GmailClient, type GmailMessage} from "../src/gmail/gmail-client";
+import {
+  createGmailClient,
+  GmailHistoryExpiredError,
+  type GmailClient,
+  type GmailListing,
+  type GmailMessage,
+} from "../src/gmail/gmail-client";
 import {normalizeGmailMessage} from "../src/gmail/normalize-message";
 import {syncGmailAccount} from "../src/gmail/sync-gmail";
 import {getGoogleAccessToken} from "../src/google/token-provider";
@@ -14,16 +20,20 @@ const testDb = (env as unknown as {DB: D1Database}).DB;
 class FakeEmailRepository implements EmailRepository {
   cursor: string | null;
   readonly records: Array<ReturnType<typeof normalizeGmailMessage>> = [];
+  readonly operations: string[] = [];
 
-  constructor(cursor: string | null = null) {
+  constructor(cursor: string | null = null, private readonly upsertError?: Error) {
     this.cursor = cursor;
   }
 
   async getCursor(): Promise<string | null> {
+    this.operations.push("getCursor");
     return this.cursor;
   }
 
   async upsertRecords(records: Array<ReturnType<typeof normalizeGmailMessage>>): Promise<number> {
+    this.operations.push("upsertRecords");
+    if (this.upsertError) throw this.upsertError;
     let changed = 0;
     for (const record of records) {
       const existing = this.records.find((candidate) => candidate.providerMessageId === record.providerMessageId);
@@ -39,6 +49,7 @@ class FakeEmailRepository implements EmailRepository {
   }
 
   async setCursor(_accountId: string, cursor: string): Promise<void> {
+    this.operations.push("setCursor");
     this.cursor = cursor;
   }
 }
@@ -47,22 +58,21 @@ class FakeGmailClient implements GmailClient {
   constructor(
     private readonly input: {
       messages: GmailMessage[];
-      nextCursor: string;
+      checkpoint: string;
       historyExpired?: boolean;
+      error?: Error;
     },
   ) {}
 
-  async listRecentMessages(): Promise<GmailMessage[]> {
-    return this.input.messages;
+  async listRecentMessages(): Promise<GmailListing> {
+    if (this.input.error) throw this.input.error;
+    return {messages: this.input.messages, checkpoint: this.input.checkpoint};
   }
 
-  async listChangedMessages(): Promise<GmailMessage[]> {
+  async listChangedMessages(): Promise<GmailListing> {
     if (this.input.historyExpired) throw new GmailHistoryExpiredError();
-    return this.input.messages;
-  }
-
-  async getCurrentHistoryId(): Promise<string> {
-    return this.input.nextCursor;
+    if (this.input.error) throw this.input.error;
+    return {messages: this.input.messages, checkpoint: this.input.checkpoint};
   }
 }
 
@@ -99,7 +109,7 @@ describe("Gmail synchronization", () => {
     const result = await syncGmailAccount(baseInput({
       client: new FakeGmailClient({
         messages: [gmailMessage("m-1", "etag-1"), gmailMessage("m-1", "etag-1")],
-        nextCursor: "history-10",
+        checkpoint: "history-10",
       }),
       repository,
     }));
@@ -112,7 +122,7 @@ describe("Gmail synchronization", () => {
   it("never persists a decoded message body", async () => {
     const repository = new FakeEmailRepository();
     await syncGmailAccount(baseInput({
-      client: new FakeGmailClient({messages: [gmailMessage("m-2", "etag-2", "PRIVATE BODY")], nextCursor: "history-11"}),
+      client: new FakeGmailClient({messages: [gmailMessage("m-2", "etag-2", "PRIVATE BODY")], checkpoint: "history-11"}),
       repository,
     }));
 
@@ -122,7 +132,7 @@ describe("Gmail synchronization", () => {
   it("falls back to a bounded full sync when history expires", async () => {
     const repository = new FakeEmailRepository("expired");
     const result = await syncGmailAccount(baseInput({
-      client: new FakeGmailClient({historyExpired: true, messages: [], nextCursor: "history-12"}),
+      client: new FakeGmailClient({historyExpired: true, messages: [], checkpoint: "history-12"}),
       repository,
     }));
 
@@ -133,12 +143,87 @@ describe("Gmail synchronization", () => {
   it("uses delta mode for a current Gmail history cursor", async () => {
     const repository = new FakeEmailRepository("history-12");
     const result = await syncGmailAccount(baseInput({
-      client: new FakeGmailClient({messages: [gmailMessage("m-3", "etag-3")], nextCursor: "history-13"}),
+      client: new FakeGmailClient({messages: [gmailMessage("m-3", "etag-3")], checkpoint: "history-13"}),
       repository,
     }));
 
     expect(result.mode).toBe("delta");
     expect(repository.records[0]?.providerMessageId).toBe("m-3");
+  });
+
+  it("preserves the prior cursor when a provider failure happens before metadata upsert", async () => {
+    const repository = new FakeEmailRepository("history-12");
+    await expect(syncGmailAccount(baseInput({
+      client: new FakeGmailClient({
+        error: new Error("private provider failure"),
+        messages: [],
+        checkpoint: "history-13",
+      }),
+      repository,
+    }))).rejects.toThrow("private provider failure");
+
+    expect(repository.cursor).toBe("history-12");
+    expect(repository.operations).toEqual(["getCursor"]);
+  });
+
+  it("does not advance the cursor when metadata persistence fails", async () => {
+    const repository = new FakeEmailRepository("history-12", new Error("D1 unavailable"));
+    await expect(syncGmailAccount(baseInput({
+      client: new FakeGmailClient({
+        messages: [gmailMessage("m-new", "history-13")],
+        checkpoint: "history-13",
+      }),
+      repository,
+    }))).rejects.toThrow("D1 unavailable");
+
+    expect(repository.cursor).toBe("history-12");
+    expect(repository.operations).toEqual(["getCursor", "upsertRecords"]);
+  });
+
+  it("uses a full-snapshot checkpoint captured before listing, so later arrivals remain discoverable", async () => {
+    const repository = new FakeEmailRepository();
+    let messageListStarted = false;
+    const fetcher = (async (request: RequestInfo | URL) => {
+      const url = new URL(String(request));
+      if (url.pathname.endsWith("/profile")) return json({historyId: messageListStarted ? "history-11" : "history-10"});
+      if (url.pathname.endsWith("/messages")) {
+        messageListStarted = true;
+        return json({messages: [{id: "m-before"}]});
+      }
+      if (url.pathname.endsWith("/history")) {
+        return json({history: [{messagesAdded: [{message: {id: "m-later"}}]}], historyId: "history-11"});
+      }
+      if (url.pathname.endsWith("/messages/m-before")) return json(gmailMessage("m-before", "history-10"));
+      if (url.pathname.endsWith("/messages/m-later")) return json(gmailMessage("m-later", "history-11"));
+      throw new Error(`Unexpected request ${url}`);
+    }) as typeof fetch;
+
+    const result = await syncGmailAccount(baseInput({client: createGmailClient("access-token", fetcher), repository}));
+
+    expect(result.cursor).toBe("history-10");
+    expect(repository.cursor).toBe("history-10");
+    const delta = await syncGmailAccount(baseInput({client: createGmailClient("access-token", fetcher), repository}));
+    expect(delta).toMatchObject({mode: "delta", cursor: "history-11"});
+    expect(repository.records.map((record) => record.providerMessageId)).toEqual(["m-before", "m-later"]);
+  });
+
+  it("persists the terminal history checkpoint without a later profile read", async () => {
+    const repository = new FakeEmailRepository("history-10");
+    const requests: URL[] = [];
+    const fetcher = (async (request: RequestInfo | URL) => {
+      const url = new URL(String(request));
+      requests.push(url);
+      if (url.pathname.endsWith("/history")) {
+        return json({history: [{messagesAdded: [{message: {id: "m-later"}}]}], historyId: "history-11"});
+      }
+      if (url.pathname.endsWith("/messages/m-later")) return json(gmailMessage("m-later", "history-11"));
+      throw new Error(`Unexpected request ${url}`);
+    }) as typeof fetch;
+
+    const result = await syncGmailAccount(baseInput({client: createGmailClient("access-token", fetcher), repository}));
+
+    expect(result.cursor).toBe("history-11");
+    expect(requests.map((url) => url.pathname)).not.toContain("/gmail/v1/users/me/profile");
   });
 });
 
@@ -148,6 +233,7 @@ describe("Gmail API client", () => {
     const fetcher = (async (request: RequestInfo | URL, init?: RequestInit) => {
       const url = new URL(String(request));
       requests.push({url, init});
+      if (url.pathname === "/gmail/v1/users/me/profile") return json({historyId: "snapshot-10"});
       if (url.pathname === "/gmail/v1/users/me/messages" && !url.searchParams.get("pageToken")) {
         return json({messages: [{id: "m-1"}], nextPageToken: "next"});
       }
@@ -159,9 +245,13 @@ describe("Gmail API client", () => {
       throw new Error(`Unexpected request ${url}`);
     }) as typeof fetch;
 
-    const messages = await createGmailClient("access-token", fetcher).listRecentMessages("newer_than:7d");
+    const listing = await createGmailClient("access-token", fetcher).listRecentMessages("newer_than:7d");
 
-    expect(messages.map((message) => message.id)).toEqual(["m-1", "m-2"]);
+    expect(listing).toMatchObject({checkpoint: "snapshot-10"});
+    expect(listing.messages.map((message) => message.id)).toEqual(["m-1", "m-2"]);
+    const listRequests = requests.filter(({url}) => url.pathname === "/gmail/v1/users/me/messages");
+    expect(listRequests).toHaveLength(2);
+    expect(listRequests[0]?.url.searchParams.get("q")).toBe("newer_than:7d");
     const detailRequests = requests.filter(({url}) => /^\/gmail\/v1\/users\/me\/messages\/m-/u.test(url.pathname));
     expect(detailRequests).toHaveLength(2);
     for (const {url, init} of detailRequests) {
@@ -173,13 +263,15 @@ describe("Gmail API client", () => {
   });
 
   it("paginates history additions, deduplicates message IDs, and maps history 404 to expiry", async () => {
+    const requests: URL[] = [];
     const fetcher = (async (request: RequestInfo | URL) => {
       const url = new URL(String(request));
+      requests.push(url);
       if (url.pathname === "/gmail/v1/users/me/history" && !url.searchParams.get("pageToken")) {
-        return json({history: [{messagesAdded: [{message: {id: "m-1"}}]}], nextPageToken: "next"});
+        return json({history: [{messagesAdded: [{message: {id: "m-1"}}]}], nextPageToken: "next", historyId: "history-2"});
       }
       if (url.pathname === "/gmail/v1/users/me/history" && url.searchParams.get("pageToken") === "next") {
-        return json({history: [{messagesAdded: [{message: {id: "m-1"}}, {message: {id: "m-2"}}]}]});
+        return json({history: [{messagesAdded: [{message: {id: "m-1"}}, {message: {id: "m-2"}}]}], historyId: "history-3"});
       }
       if (url.pathname === "/gmail/v1/users/me/messages/m-1") return json(gmailMessage("m-1", "h-1"));
       if (url.pathname === "/gmail/v1/users/me/messages/m-2") return json(gmailMessage("m-2", "h-2"));
@@ -187,7 +279,16 @@ describe("Gmail API client", () => {
     }) as typeof fetch;
     const client = createGmailClient("access-token", fetcher);
 
-    await expect(client.listChangedMessages("history-1")).resolves.toHaveLength(2);
+    await expect(client.listChangedMessages("history-1")).resolves.toMatchObject({
+      checkpoint: "history-3",
+      messages: [expect.anything(), expect.anything()],
+    });
+    const historyRequests = requests.filter((url) => url.pathname === "/gmail/v1/users/me/history");
+    expect(historyRequests).toHaveLength(2);
+    for (const request of historyRequests) {
+      expect(request.searchParams.get("startHistoryId")).toBe("history-1");
+      expect(request.searchParams.getAll("historyTypes")).toEqual(["messageAdded"]);
+    }
 
     const expiredClient = createGmailClient(
       "access-token",
@@ -196,17 +297,15 @@ describe("Gmail API client", () => {
     await expect(expiredClient.listChangedMessages("missing")).rejects.toBeInstanceOf(GmailHistoryExpiredError);
   });
 
-  it("reads the profile history ID and redacts non-history API failures", async () => {
+  it("redacts non-history API failures", async () => {
     const client = createGmailClient(
       "access-token",
       (async (request: RequestInfo | URL) => {
         const url = new URL(String(request));
-        if (url.pathname.endsWith("/profile")) return json({historyId: "history-99"});
         return new Response("private upstream failure access-token", {status: 500});
       }) as typeof fetch,
     );
 
-    await expect(client.getCurrentHistoryId()).resolves.toBe("history-99");
     await expect(client.listRecentMessages("newer_than:7d")).rejects.toThrow("Gmail request failed");
     await expect(client.listRecentMessages("newer_than:7d")).rejects.not.toThrow("access-token");
   });
@@ -221,6 +320,89 @@ describe("Gmail API client", () => {
 
     await expect(client.listRecentMessages("newer_than:7d")).rejects.toThrow("Gmail request failed");
     await expect(client.listRecentMessages("newer_than:7d")).rejects.not.toThrow("access-token");
+  });
+
+  it("skips only missing recent message details while keeping returned metadata", async () => {
+    const fetcher = (async (request: RequestInfo | URL) => {
+      const url = new URL(String(request));
+      if (url.pathname.endsWith("/profile")) return json({historyId: "history-10"});
+      if (url.pathname.endsWith("/messages")) return json({messages: [{id: "m-present"}, {id: "m-missing"}]});
+      if (url.pathname.endsWith("/messages/m-present")) return json(gmailMessage("m-present", "history-10"));
+      if (url.pathname.endsWith("/messages/m-missing")) return new Response(null, {status: 404});
+      throw new Error(`Unexpected request ${url}`);
+    }) as typeof fetch;
+
+    await expect(createGmailClient("access-token", fetcher).listRecentMessages("newer_than:7d")).resolves.toMatchObject({
+      checkpoint: "history-10",
+      messages: [{id: "m-present"}],
+    });
+  });
+
+  it("skips only missing history message details and preserves non-404 failures", async () => {
+    const successfulFetcher = (async (request: RequestInfo | URL) => {
+      const url = new URL(String(request));
+      if (url.pathname.endsWith("/history")) {
+        return json({
+          history: [{messagesAdded: [{message: {id: "m-present"}}, {message: {id: "m-missing"}}]}],
+          historyId: "history-11",
+        });
+      }
+      if (url.pathname.endsWith("/messages/m-present")) return json(gmailMessage("m-present", "history-11"));
+      if (url.pathname.endsWith("/messages/m-missing")) return new Response(null, {status: 404});
+      throw new Error(`Unexpected request ${url}`);
+    }) as typeof fetch;
+    await expect(createGmailClient("access-token", successfulFetcher).listChangedMessages("history-10")).resolves.toMatchObject({
+      checkpoint: "history-11",
+      messages: [{id: "m-present"}],
+    });
+
+    const brokenFetcher = (async (request: RequestInfo | URL) => {
+      const url = new URL(String(request));
+      if (url.pathname.endsWith("/history")) {
+        return json({history: [{messagesAdded: [{message: {id: "m-failed"}}]}], historyId: "history-11"});
+      }
+      return new Response("private detail error", {status: 500});
+    }) as typeof fetch;
+    await expect(createGmailClient("access-token", brokenFetcher).listChangedMessages("history-10"))
+      .rejects.toThrow("Gmail request failed");
+  });
+
+  it("validates external detail shapes while defaulting and capping safe snippets", async () => {
+    const validWithoutSnippet = {...gmailMessage("m-safe", "history-10")};
+    delete (validWithoutSnippet as Partial<GmailMessage>).snippet;
+    const client = createGmailClient(
+      "access-token",
+      (async (request: RequestInfo | URL) => {
+        const url = new URL(String(request));
+        if (url.pathname.endsWith("/profile")) return json({historyId: "history-10"});
+        if (url.pathname.endsWith("/messages")) return json({messages: [{id: "m-safe"}]});
+        if (url.pathname.endsWith("/messages/m-safe")) return json(validWithoutSnippet);
+        throw new Error(`Unexpected request ${url}`);
+      }) as typeof fetch,
+    );
+    const listing = await client.listRecentMessages("newer_than:7d");
+    expect(listing.messages[0]?.snippet).toBe("");
+    expect(normalizeGmailMessage("account-1", {...gmailMessage("m-long", "history-10"), snippet: "x".repeat(501)}).snippet)
+      .toHaveLength(500);
+
+    const invalidDetails: Array<[string, unknown]> = [
+      ["missing identifier", {...gmailMessage("m-invalid", "history-10"), id: ""}],
+      ["invalid timestamp", {...gmailMessage("m-invalid", "history-10"), internalDate: "not-an-epoch"}],
+      ["malformed header", {...gmailMessage("m-invalid", "history-10"), payload: {headers: [{name: "From", value: 42}]}}],
+    ];
+    for (const [_name, body] of invalidDetails) {
+      const invalidClient = createGmailClient(
+        "access-token",
+        (async (request: RequestInfo | URL) => {
+          const url = new URL(String(request));
+          if (url.pathname.endsWith("/profile")) return json({historyId: "history-10"});
+          if (url.pathname.endsWith("/messages")) return json({messages: [{id: "m-invalid"}]});
+          return json(body);
+        }) as typeof fetch,
+      );
+      await expect(invalidClient.listRecentMessages("newer_than:7d")).rejects.toThrow("Gmail message response was invalid");
+      await expect(invalidClient.listRecentMessages("newer_than:7d")).rejects.not.toThrow("m-invalid");
+    }
   });
 });
 
@@ -324,6 +506,7 @@ describe("D1 email repository", () => {
     const changed = {...first, sourceVersion: "history-2", subject: "Updated subject"};
 
     await expect(repository.getCursor("account-1")).resolves.toBeNull();
+    await expect(repository.upsertRecords([], now.toISOString())).resolves.toBe(0);
     await expect(repository.upsertRecords([first], now.toISOString())).resolves.toBe(1);
     await expect(repository.upsertRecords([first], now.toISOString())).resolves.toBe(0);
     await expect(repository.upsertRecords([changed], now.toISOString())).resolves.toBe(1);
