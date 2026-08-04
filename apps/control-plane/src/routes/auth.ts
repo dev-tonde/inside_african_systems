@@ -101,6 +101,7 @@ const startOAuth = async (
   purpose: OAuthPurpose,
   context: StoredOAuthFlow["context"],
   userId: string | null,
+  sessionIdHash: string | null,
 ): Promise<Response> => {
   const {verifier, challenge} = await newPkce();
   const state = newOpaqueToken();
@@ -113,6 +114,7 @@ const startOAuth = async (
     encryptedVerifier,
     context,
     userId,
+    sessionIdHash,
     expiresAt,
   });
   const location = buildGoogleAuthorizationUrl({
@@ -126,6 +128,28 @@ const startOAuth = async (
     status: 302,
     headers: {location, "cache-control": "no-store"},
   });
+};
+
+type AuthenticatedOwnerSession = {
+  userId: string;
+  email: string;
+  idHash: string;
+};
+
+const authenticateOwnerSession = async (
+  request: Request,
+  env: Env,
+  repository: AuthRepository,
+  now: string,
+): Promise<AuthenticatedOwnerSession | Response> => {
+  const token = readSessionCookie(request);
+  if (!token) return error("unauthorized", "Authentication required", 401);
+  const idHash = await hashOpaqueToken(token, env.SESSION_HASH_KEY);
+  const owner = await repository.findSession(idHash, now);
+  if (!owner || owner.googleSubject !== env.OWNER_GOOGLE_SUB) {
+    return error("unauthorized", "Authentication required", 401);
+  }
+  return {userId: owner.userId, email: owner.email, idHash};
 };
 
 const handleCallback = async (
@@ -142,6 +166,20 @@ const handleCallback = async (
     const stateHash = await hashOpaqueToken(state, env.SESSION_HASH_KEY);
     const flow = await dependencies.repository.consumeOAuthFlow(stateHash, dependencies.now().toISOString());
     if (!flow) return text("OAuth callback failed", 400);
+
+    if (flow.purpose === "connect_account") {
+      if (!flow.userId || !flow.context || !flow.sessionIdHash) return text("OAuth callback failed", 400);
+      const owner = await authenticateOwnerSession(
+        request,
+        env,
+        dependencies.repository,
+        dependencies.now().toISOString(),
+      );
+      if (owner instanceof Response) return owner;
+      if (owner.userId !== flow.userId || owner.idHash !== flow.sessionIdHash) {
+        return error("forbidden", "Connection session mismatch", 403);
+      }
+    }
 
     const code = url.searchParams.get("code");
     if (!code) return text("OAuth callback failed", 400);
@@ -207,13 +245,8 @@ const handleCallback = async (
 };
 
 export const requireOwner: RequireOwner = async (request, env, repository) => {
-  const token = readSessionCookie(request);
-  if (!token) return error("unauthorized", "Authentication required", 401);
-  const idHash = await hashOpaqueToken(token, env.SESSION_HASH_KEY);
-  const owner = await repository.findSession(idHash, new Date().toISOString());
-  if (!owner || owner.googleSubject !== env.OWNER_GOOGLE_SUB) {
-    return error("unauthorized", "Authentication required", 401);
-  }
+  const owner = await authenticateOwnerSession(request, env, repository, new Date().toISOString());
+  if (owner instanceof Response) return owner;
   return {userId: owner.userId, email: owner.email};
 };
 
@@ -223,7 +256,7 @@ export const handleAuthRoute: HandleAuthRoute = async (request, env, dependencie
   if (url.pathname === "/auth/login") {
     if (request.method !== "GET") return text("Method not allowed", 405);
     if (!requestHasPinnedOrigin(request, env)) return text("Invalid request origin", 400);
-    return startOAuth(env, dependencies, "owner_login", null, null);
+    return startOAuth(env, dependencies, "owner_login", null, null, null);
   }
 
   if (url.pathname.startsWith("/auth/connect/")) {
@@ -231,9 +264,14 @@ export const handleAuthRoute: HandleAuthRoute = async (request, env, dependencie
     if (!requestHasPinnedOrigin(request, env)) return text("Invalid request origin", 400);
     const context = url.pathname.slice("/auth/connect/".length);
     if (context !== "personal" && context !== "work") return text("Invalid account context", 400);
-    const owner = await requireOwner(request, env, dependencies.repository);
+    const owner = await authenticateOwnerSession(
+      request,
+      env,
+      dependencies.repository,
+      dependencies.now().toISOString(),
+    );
     if (owner instanceof Response) return owner;
-    return startOAuth(env, dependencies, "connect_account", context, owner.userId);
+    return startOAuth(env, dependencies, "connect_account", context, owner.userId, owner.idHash);
   }
 
   if (url.pathname === "/auth/callback") {
@@ -243,6 +281,9 @@ export const handleAuthRoute: HandleAuthRoute = async (request, env, dependencie
 
   if (url.pathname === "/auth/logout") {
     if (request.method !== "POST") return text("Method not allowed", 405);
+    if (!requestHasPinnedOrigin(request, env) || request.headers.get("origin") !== env.PUBLIC_APP_ORIGIN) {
+      return error("forbidden", "Invalid request origin", 403);
+    }
     const token = readSessionCookie(request);
     if (token) {
       await dependencies.repository.deleteSession(await hashOpaqueToken(token, env.SESSION_HASH_KEY));

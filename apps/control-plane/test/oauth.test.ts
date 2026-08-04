@@ -47,7 +47,11 @@ const build = (purpose: OAuthPurpose) =>
     purpose,
   });
 
-type SavedFlow = StoredOAuthFlow & {stateHash: string; expiresAt: string};
+type SavedFlow = StoredOAuthFlow & {
+  stateHash: string;
+  sessionIdHash: string | null;
+  expiresAt: string;
+};
 type SavedSession = {idHash: string; userId: string; expiresAt: string; now: string};
 type SavedAccount = Parameters<AuthRepository["saveAccount"]>[0];
 
@@ -67,6 +71,7 @@ class FakeAuthRepository implements AuthRepository {
       encryptedVerifier: input.encryptedVerifier,
       context: input.context,
       userId: input.userId,
+      sessionIdHash: input.sessionIdHash,
       expiresAt: input.expiresAt,
     };
     this.flows.set(input.stateHash, flow);
@@ -127,9 +132,11 @@ const googleFetcher = (input: {
   identity?: Partial<{sub: string; email: string; aud: string; iss: string; exp: string}>;
   tokenStatus?: number;
   tokenError?: string;
+  requests?: string[];
 }) =>
   (async (request: RequestInfo | URL) => {
     const url = String(request);
+    input.requests?.push(url);
     if (url === "https://oauth2.googleapis.com/token") {
       if (input.tokenStatus && input.tokenStatus !== 200) {
         return new Response(input.tokenError ?? "upstream rejected secret-token", {status: input.tokenStatus});
@@ -163,6 +170,7 @@ const seedFlow = async (
     purpose: OAuthPurpose;
     context?: "personal" | "work" | null;
     userId?: string | null;
+    sessionIdHash?: string | null;
     expiresAt?: string;
   },
 ) => {
@@ -174,6 +182,7 @@ const seedFlow = async (
     encryptedVerifier: await encryptSecret("pkce-verifier", testEnv.TOKEN_ENCRYPTION_KEY_B64),
     context: input.context ?? null,
     userId: input.userId ?? null,
+    sessionIdHash: input.sessionIdHash ?? null,
     expiresAt: input.expiresAt ?? new Date(now.getTime() + 600_000).toISOString(),
   };
   repository.flows.set(stateHash, flow);
@@ -185,23 +194,44 @@ const runCallback = async (input: {
   purpose: OAuthPurpose;
   context?: "personal" | "work";
   userId?: string;
+  flowSessionToken?: string;
+  callbackSessionToken?: string | null;
+  seedCallbackSession?: boolean;
+  callbackSessionUserId?: string;
   state?: string;
   expiresAt?: string;
   tokens?: Partial<GoogleTokenResponse>;
   identity?: Partial<{sub: string; email: string; aud: string; iss: string; exp: string}>;
   tokenStatus?: number;
   tokenError?: string;
+  requests?: string[];
 }) => {
   const repository = input.repository ?? new FakeAuthRepository();
+  const defaultSessionToken = input.purpose === "connect_account" ? "callback-owner-session" : null;
+  const flowSessionToken = input.flowSessionToken ?? defaultSessionToken;
+  const callbackSessionToken =
+    input.callbackSessionToken === undefined ? defaultSessionToken : input.callbackSessionToken;
+  if (callbackSessionToken && input.seedCallbackSession !== false) {
+    repository.sessions.set(await hashOpaqueToken(callbackSessionToken, testEnv.SESSION_HASH_KEY), {
+      userId: input.callbackSessionUserId ?? "owner-user-id",
+      email: "owner@example.com",
+      googleSubject: "owner-subject",
+    });
+  }
   const state = await seedFlow(repository, {
     state: input.state,
     purpose: input.purpose,
     context: input.context,
     userId: input.userId,
+    sessionIdHash: flowSessionToken
+      ? await hashOpaqueToken(flowSessionToken, testEnv.SESSION_HASH_KEY)
+      : null,
     expiresAt: input.expiresAt,
   });
+  const headers = new Headers();
+  if (callbackSessionToken) headers.set("cookie", `__Host-lifeos_session=${callbackSessionToken}`);
   const response = await handleAuthRoute(
-    new Request(`${callbackUrl}?state=${encodeURIComponent(state)}&code=authorization-code`),
+    new Request(`${callbackUrl}?state=${encodeURIComponent(state)}&code=authorization-code`, {headers}),
     testEnv,
     {
       repository,
@@ -330,6 +360,7 @@ describe("auth routes", () => {
       purpose: "owner_login",
       context: null,
       userId: null,
+      sessionIdHash: null,
       expiresAt: "2026-08-03T10:10:00.000Z",
     });
     expect(repository.savedFlows[0].stateHash).not.toContain(state);
@@ -355,6 +386,7 @@ describe("auth routes", () => {
       purpose: "connect_account",
       context,
       userId: "owner-user-id",
+      sessionIdHash: await hashOpaqueToken(token, testEnv.SESSION_HASH_KEY),
     });
   });
 
@@ -501,14 +533,104 @@ describe("auth routes", () => {
     }
   });
 
+  it("requires the exact initiating owner session before exchanging a connection code", async () => {
+    const repository = new FakeAuthRepository();
+    const requests: string[] = [];
+    const {response} = await runCallback({
+      repository,
+      purpose: "connect_account",
+      context: "personal",
+      userId: "owner-user-id",
+      callbackSessionToken: null,
+      requests,
+    });
+
+    expect(response.status).toBe(401);
+    expect(requests).toEqual([]);
+    expect(repository.savedAccounts).toHaveLength(0);
+  });
+
+  it("rejects an expired or unknown initiating session before exchanging a connection code", async () => {
+    const repository = new FakeAuthRepository();
+    const requests: string[] = [];
+    const {response} = await runCallback({
+      repository,
+      purpose: "connect_account",
+      context: "personal",
+      userId: "owner-user-id",
+      seedCallbackSession: false,
+      requests,
+    });
+
+    expect(response.status).toBe(401);
+    expect(requests).toEqual([]);
+    expect(repository.savedAccounts).toHaveLength(0);
+  });
+
+  it("rejects a different valid owner session before exchanging a connection code", async () => {
+    const repository = new FakeAuthRepository();
+    const requests: string[] = [];
+    const {response} = await runCallback({
+      repository,
+      purpose: "connect_account",
+      context: "personal",
+      userId: "owner-user-id",
+      flowSessionToken: "initiating-owner-session",
+      callbackSessionToken: "different-owner-session",
+      requests,
+    });
+
+    expect(response.status).toBe(403);
+    expect(requests).toEqual([]);
+    expect(repository.savedAccounts).toHaveLength(0);
+  });
+
+  it("rejects a flow bound to another user before exchanging a connection code", async () => {
+    const repository = new FakeAuthRepository();
+    const requests: string[] = [];
+    const {response} = await runCallback({
+      repository,
+      purpose: "connect_account",
+      context: "personal",
+      userId: "another-user-id",
+      requests,
+    });
+
+    expect(response.status).toBe(403);
+    expect(requests).toEqual([]);
+    expect(repository.savedAccounts).toHaveLength(0);
+  });
+
+  it("completes a connection with the exact initiating owner session", async () => {
+    const requests: string[] = [];
+    const {repository, response} = await runCallback({
+      purpose: "connect_account",
+      context: "work",
+      userId: "owner-user-id",
+      flowSessionToken: "exact-owner-session",
+      callbackSessionToken: "exact-owner-session",
+      requests,
+    });
+
+    expect(response.status).toBe(302);
+    expect(requests).toHaveLength(2);
+    expect(repository.savedAccounts).toHaveLength(1);
+    expect(repository.savedAccounts[0].context).toBe("work");
+  });
+
   it("consumes callback state once", async () => {
     const repository = new FakeAuthRepository();
     const state = await seedFlow(repository, {
       purpose: "connect_account",
       context: "personal",
       userId: "owner-user-id",
+      sessionIdHash: await hashOpaqueToken("owner-session", testEnv.SESSION_HASH_KEY),
     });
-    const request = () => new Request(`${callbackUrl}?state=${state}&code=authorization-code`);
+    await grantOwnerSession(repository);
+    const request = () =>
+      new Request(`${callbackUrl}?state=${state}&code=authorization-code`, {
+        headers: {cookie: "__Host-lifeos_session=owner-session"},
+      });
     const dependencies = {repository, now: () => now, fetcher: googleFetcher({})};
 
     expect((await handleAuthRoute(request(), testEnv, dependencies))?.status).toBe(302);
@@ -522,10 +644,14 @@ describe("auth routes", () => {
       purpose: "connect_account",
       context: "personal",
       userId: "owner-user-id",
+      sessionIdHash: await hashOpaqueToken("owner-session", testEnv.SESSION_HASH_KEY),
       expiresAt: "2026-08-03T09:59:59.000Z",
     });
     const dependencies = {repository, now: () => now, fetcher: googleFetcher({})};
-    const request = () => new Request(`${callbackUrl}?state=${state}&code=authorization-code`);
+    const request = () =>
+      new Request(`${callbackUrl}?state=${state}&code=authorization-code`, {
+        headers: {cookie: "__Host-lifeos_session=owner-session"},
+      });
 
     expect((await handleAuthRoute(request(), testEnv, dependencies))?.status).toBe(400);
     expect((await handleAuthRoute(request(), testEnv, dependencies))?.status).toBe(400);
@@ -571,7 +697,7 @@ describe("auth routes", () => {
     const response = await handleAuthRoute(
       new Request(`${appOrigin}/auth/logout`, {
         method: "POST",
-        headers: {cookie: `__Host-lifeos_session=${token}`},
+        headers: {cookie: `__Host-lifeos_session=${token}`, origin: appOrigin},
       }),
       testEnv,
       {repository, now: () => now, fetcher: googleFetcher({})},
@@ -583,6 +709,27 @@ describe("auth routes", () => {
       "__Host-lifeos_session=; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=0",
     );
     expect((await requireOwner(new Request(`${appOrigin}/api/me`, {headers: {cookie: `__Host-lifeos_session=${token}`}}), testEnv, repository)) instanceof Response).toBe(true);
+  });
+
+  it.each([
+    ["missing", null],
+    ["hostile", "https://evil.example"],
+  ])("rejects a logout with a %s initiating Origin without changing the session", async (_name, origin) => {
+    const repository = new FakeAuthRepository();
+    const token = await grantOwnerSession(repository);
+    const headers = new Headers({cookie: `__Host-lifeos_session=${token}`});
+    if (origin) headers.set("origin", origin);
+
+    const response = await handleAuthRoute(
+      new Request(`${appOrigin}/auth/logout`, {method: "POST", headers}),
+      testEnv,
+      {repository, now: () => now, fetcher: googleFetcher({})},
+    );
+
+    expect(response?.status).toBe(403);
+    expect(repository.deletedSessions).toEqual([]);
+    expect(response?.headers.get("set-cookie")).toBeNull();
+    expect(repository.sessions.has(await hashOpaqueToken(token, testEnv.SESSION_HASH_KEY))).toBe(true);
   });
 
   it("rejects a session issued to a subject that is no longer the configured owner", async () => {
@@ -622,6 +769,10 @@ const repositoryMigrations = [
       "CREATE INDEX idx_oauth_flows_expires ON oauth_flows(expires_at)",
     ],
   },
+  {
+    name: "0003_oauth_session_binding.sql",
+    queries: ["ALTER TABLE oauth_flows ADD COLUMN session_id_hash TEXT"],
+  },
 ];
 
 describe("D1 auth repository", () => {
@@ -637,6 +788,7 @@ describe("D1 auth repository", () => {
       encryptedVerifier: "encrypted-verifier",
       context: "work",
       userId: "owner-user-id",
+      sessionIdHash: "initiating-session-hash",
       expiresAt: "2026-08-03T10:10:00.000Z",
     });
 
@@ -645,6 +797,7 @@ describe("D1 auth repository", () => {
       encryptedVerifier: "encrypted-verifier",
       context: "work",
       userId: "owner-user-id",
+      sessionIdHash: "initiating-session-hash",
     });
     await expect(repository.consumeOAuthFlow("state-hash", now.toISOString())).resolves.toBeNull();
   });
@@ -657,6 +810,7 @@ describe("D1 auth repository", () => {
       encryptedVerifier: "encrypted-verifier",
       context: null,
       userId: null,
+      sessionIdHash: null,
       expiresAt: "2026-08-03T09:59:59.000Z",
     });
 

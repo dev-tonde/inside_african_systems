@@ -3,6 +3,7 @@ export type StoredOAuthFlow = {
   encryptedVerifier: string;
   context: "personal" | "work" | null;
   userId: string | null;
+  sessionIdHash: string | null;
 };
 
 export interface AuthRepository {
@@ -12,6 +13,7 @@ export interface AuthRepository {
     encryptedVerifier: string;
     context: StoredOAuthFlow["context"];
     userId: string | null;
+    sessionIdHash: string | null;
     expiresAt: string;
   }): Promise<void>;
   consumeOAuthFlow(stateHash: string, now: string): Promise<StoredOAuthFlow | null>;
@@ -38,6 +40,7 @@ type OAuthFlowRow = {
   code_verifier_encrypted: string;
   context: StoredOAuthFlow["context"];
   user_id: string | null;
+  session_id_hash: string | null;
 };
 
 export const createAuthRepository = (db: D1Database): AuthRepository => ({
@@ -45,8 +48,8 @@ export const createAuthRepository = (db: D1Database): AuthRepository => ({
     await db
       .prepare(
         `INSERT INTO oauth_flows
-          (state_hash, purpose, code_verifier_encrypted, context, user_id, expires_at, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          (state_hash, purpose, code_verifier_encrypted, context, user_id, session_id_hash, expires_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .bind(
         input.stateHash,
@@ -54,6 +57,7 @@ export const createAuthRepository = (db: D1Database): AuthRepository => ({
         input.encryptedVerifier,
         input.context,
         input.userId,
+        input.sessionIdHash,
         input.expiresAt,
         new Date().toISOString(),
       )
@@ -64,7 +68,7 @@ export const createAuthRepository = (db: D1Database): AuthRepository => ({
     const [selection] = await db.batch<OAuthFlowRow>([
       db
         .prepare(
-          `SELECT purpose, code_verifier_encrypted, context, user_id
+          `SELECT purpose, code_verifier_encrypted, context, user_id, session_id_hash
            FROM oauth_flows
            WHERE state_hash = ? AND expires_at > ?`,
         )
@@ -78,6 +82,7 @@ export const createAuthRepository = (db: D1Database): AuthRepository => ({
       encryptedVerifier: row.code_verifier_encrypted,
       context: row.context,
       userId: row.user_id,
+      sessionIdHash: row.session_id_hash,
     };
   },
 
