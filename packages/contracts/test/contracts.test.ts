@@ -39,7 +39,35 @@ describe("shared contracts", () => {
     ).toBe("acct-personal");
   });
 
-  it("requires immutable plan revisions", () => {
+  it("rejects negative calendar attendee counts", () => {
+    expect(() =>
+      CalendarEventSchema.parse({
+        accountId: "acct-personal",
+        providerEventId: "event-1",
+        title: "Community meeting",
+        startsAt: "2026-08-03T06:00:00.000Z",
+        endsAt: "2026-08-03T07:00:00.000Z",
+        attendeeCount: -1,
+        sourceVersion: "etag-1",
+      }),
+    ).toThrow();
+  });
+
+  it("rejects fractional calendar attendee counts", () => {
+    expect(() =>
+      CalendarEventSchema.parse({
+        accountId: "acct-personal",
+        providerEventId: "event-1",
+        title: "Community meeting",
+        startsAt: "2026-08-03T06:00:00.000Z",
+        endsAt: "2026-08-03T07:00:00.000Z",
+        attendeeCount: 1.5,
+        sourceVersion: "etag-1",
+      }),
+    ).toThrow();
+  });
+
+  it("accepts a positive whole-number plan revision", () => {
     const plan = DailyPlanSchema.parse({
       id: "plan-2026-08-03-r1",
       localDate: "2026-08-03",
@@ -54,6 +82,38 @@ describe("shared contracts", () => {
     expect(plan.revision).toBe(1);
   });
 
+  it("rejects zero plan revisions", () => {
+    expect(() =>
+      DailyPlanSchema.parse({
+        id: "plan-2026-08-03-r0",
+        localDate: "2026-08-03",
+        timeZone: "Africa/Johannesburg",
+        revision: 0,
+        generatedAt: "2026-08-03T05:00:00.000Z",
+        weekendMode: false,
+        priorities: [],
+        decisions: [],
+        timeline: [],
+      }),
+    ).toThrow();
+  });
+
+  it("rejects fractional plan revisions", () => {
+    expect(() =>
+      DailyPlanSchema.parse({
+        id: "plan-2026-08-03-r1.5",
+        localDate: "2026-08-03",
+        timeZone: "Africa/Johannesburg",
+        revision: 1.5,
+        generatedAt: "2026-08-03T05:00:00.000Z",
+        weekendMode: false,
+        priorities: [],
+        decisions: [],
+        timeline: [],
+      }),
+    ).toThrow();
+  });
+
   it("wraps refresh data with a monotonic revision", () => {
     expect(
       RefreshEnvelopeSchema.parse({
@@ -63,6 +123,50 @@ describe("shared contracts", () => {
         changedCounts: {email: 1, calendar: 0},
       }).importance,
     ).toBe("high");
+  });
+
+  it("rejects negative refresh revisions", () => {
+    expect(() =>
+      RefreshEnvelopeSchema.parse({
+        revision: -1,
+        generatedAt: "2026-08-03T05:30:00.000Z",
+        importance: "high",
+        changedCounts: {email: 1, calendar: 0},
+      }),
+    ).toThrow();
+  });
+
+  it("rejects fractional refresh revisions", () => {
+    expect(() =>
+      RefreshEnvelopeSchema.parse({
+        revision: 2.5,
+        generatedAt: "2026-08-03T05:30:00.000Z",
+        importance: "high",
+        changedCounts: {email: 1, calendar: 0},
+      }),
+    ).toThrow();
+  });
+
+  it("rejects negative email changed counts", () => {
+    expect(() =>
+      RefreshEnvelopeSchema.parse({
+        revision: 2,
+        generatedAt: "2026-08-03T05:30:00.000Z",
+        importance: "high",
+        changedCounts: {email: -1, calendar: 0},
+      }),
+    ).toThrow();
+  });
+
+  it("rejects fractional calendar changed counts", () => {
+    expect(() =>
+      RefreshEnvelopeSchema.parse({
+        revision: 2,
+        generatedAt: "2026-08-03T05:30:00.000Z",
+        importance: "high",
+        changedCounts: {email: 1, calendar: 0.5},
+      }),
+    ).toThrow();
   });
 
   it("limits account contexts to work and personal", () => {
@@ -108,7 +212,7 @@ describe("shared contracts", () => {
     ).toThrow();
   });
 
-  it("accepts exact calendar categories and bounds assessment scores", () => {
+  it("accepts an approved calendar category at the maximum assessment score", () => {
     expect(
       CalendarAssessmentSchema.parse({
         accountId: "acct-personal",
@@ -122,6 +226,9 @@ describe("shared contracts", () => {
         assessedAt: "2026-08-03T05:00:00.000Z",
       }).score,
     ).toBe(100);
+  });
+
+  it("rejects unapproved calendar assessment categories", () => {
     expect(() =>
       CalendarAssessmentSchema.parse({
         accountId: "acct-personal",
@@ -129,9 +236,25 @@ describe("shared contracts", () => {
         sourceVersion: "etag-2",
         category: "decline",
         lifePriority: "faith_and_community",
+        score: 100,
+        confidence: 1,
+        explanation: "The category is outside the approved set.",
+        assessedAt: "2026-08-03T05:00:00.000Z",
+      }),
+    ).toThrow();
+  });
+
+  it("rejects calendar assessment scores above 100", () => {
+    expect(() =>
+      CalendarAssessmentSchema.parse({
+        accountId: "acct-personal",
+        providerEventId: "event-2",
+        sourceVersion: "etag-2",
+        category: "attend",
+        lifePriority: "faith_and_community",
         score: 101,
         confidence: 1,
-        explanation: "Outside the approved range.",
+        explanation: "The score is outside the approved range.",
         assessedAt: "2026-08-03T05:00:00.000Z",
       }),
     ).toThrow();
