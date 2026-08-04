@@ -1,8 +1,8 @@
 import type {CalendarCategory, LifePriority} from "@lifeos/contracts";
-import {assertLifePriority} from "./priorities";
+import {assertLifePriority, type PriorityRank} from "./priorities";
 
 export type CalendarSignals = {
-  priorityRank: 1 | 2 | 3 | 4 | 5 | 6;
+  priorityRank: PriorityRank;
   obligation: boolean;
   relationshipValue: number;
   financialCareerValue: number;
@@ -67,16 +67,24 @@ export const scoreCalendarEvent = (signals: CalendarSignals): CalendarScore => {
   const score = Math.max(0, Math.min(100, Math.round(raw)));
 
   let category: CalendarCategory;
+  let explanation: string;
   if (signals.evidenceConfidence < 0.5) {
     category = "optional";
+    explanation = "Low evidence confidence keeps this optional.";
   } else if (signals.obligation || score >= 55) {
     category = "protect";
+    explanation = signals.obligation
+      ? "A sufficiently supported obligation should be protected."
+      : `Score ${score} meets the protect threshold.`;
   } else if (score >= 35) {
     category = "attend";
+    explanation = `Score ${score} meets the attend threshold.`;
   } else if (score >= 20) {
     category = "optional";
+    explanation = `Score ${score} meets the optional threshold.`;
   } else {
     category = "recommend_decline_or_reschedule";
+    explanation = `Score ${score} is below the optional threshold.`;
   }
 
   return {
@@ -84,6 +92,6 @@ export const scoreCalendarEvent = (signals: CalendarSignals): CalendarScore => {
     lifePriority: signals.lifePriority ?? "personal_administration",
     score,
     confidence: signals.evidenceConfidence,
-    explanation: "Score combines priority, obligation, relationship, career, rarity, duration and conflict cost.",
+    explanation,
   };
 };

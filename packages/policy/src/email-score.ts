@@ -23,6 +23,12 @@ export type EmailScore = {
   explanation: string;
 };
 
+/**
+ * A one-year window admits naturally overdue deadlines while rejecting corrupt
+ * or implausibly distant timestamps before they can affect prioritisation.
+ */
+const maximumDeadlineDistanceHours = 8_760;
+
 const assertBoolean: (value: unknown, name: string) => asserts value is boolean = (value, name) => {
   if (typeof value !== "boolean") {
     throw new TypeError(`${name} must be a boolean`);
@@ -46,7 +52,12 @@ const assertSignals = (signals: EmailSignals): void => {
   assertBoolean(signals.automatedSender, "automatedSender");
   assertBoolean(signals.newsletter, "newsletter");
   if (signals.hoursUntilDeadline !== null) {
-    assertFiniteRange(signals.hoursUntilDeadline, "hoursUntilDeadline", 0, 8_760);
+    assertFiniteRange(
+      signals.hoursUntilDeadline,
+      "hoursUntilDeadline",
+      -maximumDeadlineDistanceHours,
+      maximumDeadlineDistanceHours,
+    );
   }
   assertFiniteRange(signals.spamSignals, "spamSignals", 0, 10);
   if (!Number.isInteger(signals.spamSignals)) {
@@ -68,6 +79,15 @@ export const scoreEmail = (signals: EmailSignals): EmailScore => {
       lifePriority,
       confidence: 0.9,
       explanation: "Multiple spam signals require review.",
+    };
+  }
+  if (signals.hoursUntilDeadline !== null && signals.hoursUntilDeadline < 0) {
+    return {
+      importance: "critical",
+      workflowState: "do",
+      lifePriority,
+      confidence: 0.92,
+      explanation: "The explicit deadline is overdue.",
     };
   }
   if (signals.hoursUntilDeadline !== null && signals.hoursUntilDeadline <= 6) {

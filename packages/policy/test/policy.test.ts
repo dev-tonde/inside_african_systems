@@ -18,8 +18,25 @@ describe("approved life priorities", () => {
     ]);
   });
 
-  it("returns the zero-based rank for every approved priority", () => {
-    expect(lifePriorities.map(lifePriorityRank)).toEqual([0, 1, 2, 3, 4, 5]);
+  it("returns the canonical one-based rank for every approved priority", () => {
+    expect(lifePriorities.map(lifePriorityRank)).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+
+  it("composes every canonical life priority rank into calendar scoring", () => {
+    for (const priority of lifePriorities) {
+      const result = scoreCalendarEvent({
+        priorityRank: lifePriorityRank(priority),
+        obligation: false,
+        relationshipValue: 0,
+        financialCareerValue: 0,
+        rarity: 0,
+        totalMinutes: 30,
+        conflictCost: 0,
+        evidenceConfidence: 1,
+        lifePriority: priority,
+      });
+      expect(result.lifePriority).toBe(priority);
+    }
   });
 
   it("rejects an unknown priority at the runtime boundary", () => {
@@ -60,6 +77,23 @@ describe("deterministic email policy", () => {
     ).toBe("critical");
   });
 
+  it.each([-1, -720])("treats an overdue deadline of %d hours as critical work", (hoursUntilDeadline) => {
+    expect(
+      scoreEmail({
+        knownSender: false,
+        directRecipient: false,
+        hoursUntilDeadline,
+        automatedSender: false,
+        newsletter: false,
+        spamSignals: 0,
+      }),
+    ).toMatchObject({
+      importance: "critical",
+      workflowState: "do",
+      explanation: "The explicit deadline is overdue.",
+    });
+  });
+
   it("does not inflate a deadline more than six hours away", () => {
     expect(
       scoreEmail({
@@ -84,6 +118,32 @@ describe("deterministic email policy", () => {
         spamSignals: 0,
       }).workflowState,
     ).toBe("auto_archive");
+  });
+
+  it("gives an urgent deadline precedence over a newsletter", () => {
+    expect(
+      scoreEmail({
+        knownSender: false,
+        directRecipient: false,
+        hoursUntilDeadline: 1,
+        automatedSender: true,
+        newsletter: true,
+        spamSignals: 0,
+      }),
+    ).toMatchObject({importance: "critical", workflowState: "do"});
+  });
+
+  it("gives a known, directly addressed automated message reply precedence", () => {
+    expect(
+      scoreEmail({
+        knownSender: true,
+        directRecipient: true,
+        hoursUntilDeadline: null,
+        automatedSender: true,
+        newsletter: true,
+        spamSignals: 0,
+      }),
+    ).toMatchObject({importance: "high", workflowState: "reply"});
   });
 
   it("gives spam review precedence over an urgent deadline", () => {
@@ -118,7 +178,7 @@ describe("deterministic email policy", () => {
   });
 
   it.each([
-    {field: "hoursUntilDeadline", value: -1},
+    {field: "hoursUntilDeadline", value: -8_760.01},
     {field: "hoursUntilDeadline", value: 8_760.01},
     {field: "hoursUntilDeadline", value: Number.NaN},
     {field: "hoursUntilDeadline", value: Number.POSITIVE_INFINITY},
@@ -196,8 +256,29 @@ describe("deterministic calendar policy", () => {
         totalMinutes: 240,
         conflictCost: 8,
         evidenceConfidence: 0.3,
-      }).category,
-    ).toBe("optional");
+      }),
+    ).toMatchObject({
+      category: "optional",
+      explanation: "Low evidence confidence keeps this optional.",
+    });
+  });
+
+  it("uses the low-confidence gate even when the score would protect the event", () => {
+    expect(
+      scoreCalendarEvent({
+        priorityRank: 1,
+        obligation: true,
+        relationshipValue: 10,
+        financialCareerValue: 10,
+        rarity: 10,
+        totalMinutes: 0,
+        conflictCost: 0,
+        evidenceConfidence: 0.49,
+      }),
+    ).toMatchObject({
+      category: "optional",
+      explanation: "Low evidence confidence keeps this optional.",
+    });
   });
 
   it("makes only confidence below the low-confidence boundary optional", () => {
@@ -218,8 +299,11 @@ describe("deterministic calendar policy", () => {
         totalMinutes: 1_440,
         conflictCost: 10,
         evidenceConfidence: 0.5,
-      }).category,
-    ).toBe("protect");
+      }),
+    ).toMatchObject({
+      category: "protect",
+      explanation: "A sufficiently supported obligation should be protected.",
+    });
   });
 
   it("keeps the maximum defined signal combination within the score range", () => {
@@ -239,11 +323,11 @@ describe("deterministic calendar policy", () => {
     const signals = {...baseCalendarSignals, relationshipValue: 10, rarity: 10};
     expect(scoreCalendarEvent(signals)).toEqual(scoreCalendarEvent(signals));
     expect(scoreCalendarEvent(signals).explanation).toBe(
-      "Score combines priority, obligation, relationship, career, rarity, duration and conflict cost.",
+      "Score 42 meets the attend threshold.",
     );
   });
 
-  it("uses the defined score-category boundaries", () => {
+  it("uses the defined score-category boundaries and names their decisive branch", () => {
     const at = (relationshipValue: number, financialCareerValue: number, rarity: number) =>
       scoreCalendarEvent({
         ...baseCalendarSignals,
@@ -252,14 +336,32 @@ describe("deterministic calendar policy", () => {
         relationshipValue,
         financialCareerValue,
         rarity,
-      }).category;
+      });
 
-    expect(at(8, 0, 0)).toBe("recommend_decline_or_reschedule");
-    expect(at(8.5, 0, 0)).toBe("optional");
-    expect(at(10, 5.5, 0)).toBe("optional");
-    expect(at(10, 6, 0)).toBe("attend");
-    expect(at(10, 10, 22 / 3)).toBe("attend");
-    expect(at(10, 10, 8)).toBe("protect");
+    expect(at(8, 0, 0)).toMatchObject({
+      category: "recommend_decline_or_reschedule",
+      explanation: "Score 19 is below the optional threshold.",
+    });
+    expect(at(8.5, 0, 0)).toMatchObject({
+      category: "optional",
+      explanation: "Score 20 meets the optional threshold.",
+    });
+    expect(at(10, 5.5, 0)).toMatchObject({
+      category: "optional",
+      explanation: "Score 34 meets the optional threshold.",
+    });
+    expect(at(10, 6, 0)).toMatchObject({
+      category: "attend",
+      explanation: "Score 35 meets the attend threshold.",
+    });
+    expect(at(10, 10, 22 / 3)).toMatchObject({
+      category: "attend",
+      explanation: "Score 54 meets the attend threshold.",
+    });
+    expect(at(10, 10, 8)).toMatchObject({
+      category: "protect",
+      explanation: "Score 55 meets the protect threshold.",
+    });
   });
 
   it("rejects an unapproved calendar life priority", () => {

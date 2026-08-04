@@ -1,5 +1,7 @@
 import type {LifePriority} from "@lifeos/contracts";
 
+export type PriorityRank = 1 | 2 | 3 | 4 | 5 | 6;
+
 export const lifePriorities = [
   "faith_and_community",
   "income_and_wealth",
@@ -18,7 +20,7 @@ export const assertLifePriority: (value: unknown) => asserts value is LifePriori
   }
 };
 
-export const lifePriorityRank = (priority: LifePriority): number => {
+export const lifePriorityRank = (priority: LifePriority): PriorityRank => {
   assertLifePriority(priority);
-  return lifePriorities.indexOf(priority);
+  return (lifePriorities.indexOf(priority) + 1) as PriorityRank;
 };
