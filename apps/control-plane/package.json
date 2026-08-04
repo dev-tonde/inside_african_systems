@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@lifeos/contracts": "0.1.0",
+    "@lifeos/policy": "0.1.0",
     "zod": "4.4.3"
   },
   "devDependencies": {
