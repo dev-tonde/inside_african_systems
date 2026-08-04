@@ -1,8 +1,12 @@
 node_modules/
 output/*
 !output/.gitkeep
+apps/content-factory/output/*
+!apps/content-factory/output/.gitkeep
 public/audio/*
 !public/audio/.gitkeep
+apps/content-factory/public/audio/*
+!apps/content-factory/public/audio/.gitkeep
 .wrangler/
 .dev.vars
 .dev.vars.*
